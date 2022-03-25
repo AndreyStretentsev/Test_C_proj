@@ -11,7 +11,7 @@ BUILD_DIR = build
 all: $(SOURCES) ${INCLUDES} $(BUILD_DIR)/$(EXECUTABLE)
 
 clean:
-	-rm -fR $(BUILD_DIR)
+	-rm -fR $(BUILD_DIR) gumno.gif
 	
 $(BUILD_DIR)/$(EXECUTABLE): $(OBJECTS) Makefile
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@

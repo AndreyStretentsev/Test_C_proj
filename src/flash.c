@@ -6,7 +6,7 @@
 uint32_t *flash_mem = NULL;
 
 uint32_t flash_read(uint32_t addr) {
-    printf("%08X | %11d | readed from | %08X | %11d\n", 
+    printf("%08X | %11d | read from | %08X | %11d\n", 
         flash_mem[addr >> 2], flash_mem[addr >> 2], 
         addr, addr
     );
@@ -14,7 +14,7 @@ uint32_t flash_read(uint32_t addr) {
 }
 
 void flash_write(uint32_t addr, uint32_t data) {
-    printf("%08X | %11d | writed to | %08X | %11d\n", 
+    printf("%08X | %11d | written to | %08X | %11d\n", 
         data, data, 
         addr, addr
     );

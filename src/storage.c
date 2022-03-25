@@ -13,7 +13,12 @@ typedef struct {
 	uint32_t size;
 } file_header_t;
 
-#define PAGE_IND_TO_ADDR(ind)	(ind * FMC_FLASH_PAGE_SIZE + DATA_FLASH_BASE)
+#define FLASH_PAGE_SIZE_Msk	0x0FFF
+#define FLASH_PAGE_SIZE_Pos	12
+
+#define PAGE_IND_TO_ADDR(ind)	((ind) * FMC_FLASH_PAGE_SIZE + DATA_FLASH_BASE)
+#define ADDR_TO_PAGE_IND(addr)	((addr) >> FLASH_PAGE_SIZE_Pos)
+
 #define SET_FILE_HEADER(hfile, fid, fsize)	\
 	do { \
 		(hfile).id = (fid); \
@@ -23,13 +28,21 @@ typedef struct {
 		(hfile).name[2] = 'L'; \
 		(hfile).name[3] = 'E'; \
 	} while(0)
-	
-#define FLASH_PAGE_SIZE_Msk	0x0FFF
-#define FLASH_PAGE_SIZE_Pos	12
-#define SIZE_TO_PAGES_ROUND_UP(size)	(((size) >> FLASH_PAGE_SIZE_Pos) + ((size) & FLASH_PAGE_SIZE_Msk ? 1 : 0))
+
+#define SIZE_TO_PAGES_ROUND_UP(size)	\
+	(((size) >> FLASH_PAGE_SIZE_Pos) + ((size) & FLASH_PAGE_SIZE_Msk ? 1 : 0))
+
 #define SIZE_TO_PAGES_ROUND_DW(size)	((size) >> FLASH_PAGE_SIZE_Pos)
-#define SIZE_TO_PAGES_W_HEADERS(size) 	(SIZE_TO_PAGES_ROUND_UP(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) + (size)))
-#define SIZE_TO_SIZE_W_HEADERS(size)	(((SIZE_TO_PAGES_ROUND_DW(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) + (size))) << FLASH_PAGE_SIZE_Pos) + ((size) & FLASH_PAGE_SIZE_Msk))
+
+#define SIZE_TO_PAGES_W_HEADERS(size) 	\
+	(SIZE_TO_PAGES_ROUND_UP(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) + (size)))
+
+#define SIZE_TO_SIZE_W_HEADERS(size)	\
+	(((SIZE_TO_PAGES_ROUND_DW(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) \
+	 + (size))) << FLASH_PAGE_SIZE_Pos) \
+	 + ((size) & FLASH_PAGE_SIZE_Msk))
+
+#define FLASH_PAGE_SIZE_WO_HEADER	(FMC_FLASH_PAGE_SIZE - sizeof(file_header_t))
 
 static struct {
 	uint32_t free_pages;
@@ -121,106 +134,6 @@ f_error_t storage_get_file_by_id(file_t *file, uint16_t id) {
 	return FILE_OK;
 }
 
-#if 0
-uint32_t tmp_page[FMC_FLASH_PAGE_SIZE / 4];
-
-static void storage_record_move(record_t *record, uint32_t addr) {
-	for (uint8_t page = 0; 
-		page < record->size / FMC_FLASH_PAGE_SIZE; 
-		page++) {
-		storage_read_wa(
-			tmp_page, 
-			record->addr + FMC_FLASH_PAGE_SIZE * page, 
-			FMC_FLASH_PAGE_SIZE
-		);
-		storage_write_in_page_wa(
-			tmp_page, 
-			addr + FMC_FLASH_PAGE_SIZE * page, 
-			FMC_FLASH_PAGE_SIZE
-		);
-	}
-	record->addr = addr;
-}
-
-
-static void storage_fragmentate_sorted() {
-	uint32_t prev_addr = DATA_FLASH_BASE;
-	for (uint8_t i = 0; i < FILES_NUM_MAX; i++) {
-		if (f_table.records[i].id == 0)
-			continue;
-		if (f_table.records[i].addr > prev_addr) {
-			storage_record_move(&f_table.records[i], prev_addr);
-		}
-		prev_addr = f_table.records[i].addr + f_table.records[i].size;
-	}
-}
-
-
-static uint8_t storage_find_free_blocks_sorted() {
-	memset(free_list, 0, sizeof(free_list));
-	uint8_t blocks_num = 0;
-	for (uint8_t i = 0; i < FILES_NUM_MAX; i++) {
-		if (f_table.records[i].id == 0)
-			continue;
-		if (f_table.records[i].addr > free_list[blocks_num].addr) {
-			free_list[blocks_num].size = 
-				f_table.records[i].addr - free_list[blocks_num].addr;
-			blocks_num++;                         
-		} 
-		free_list[blocks_num].addr = 
-			f_table.records[i].addr + f_table.records[i].size;
-	}
-	if (free_list[blocks_num].addr < DATA_FLASH_END) {
-		free_list[blocks_num].size = 
-			DATA_FLASH_END - free_list[blocks_num].addr;
-	} else {
-		free_list[blocks_num].addr = 0;
-		blocks_num--;
-	}
-	return blocks_num + 1;
-}
-
-
-static inline void swap_records(record_t *r1, record_t *r2) {
-	record_t tmp;
-	memcpy(&tmp, r1, sizeof(record_t));
-	memcpy(r1, r2, sizeof(record_t));
-	memcpy(r2, &tmp, sizeof(record_t));
-}
-
-
-static void storage_sort_records() {
-	for (int i = 0; i < FILES_NUM_MAX; i++) {
-		bool sorted = true;
-		for (int j = 0; j < FILES_NUM_MAX - (i + 1); j++) { 
-			if (f_table.records[j].addr > f_table.records[j + 1].addr) {
-				sorted = false;
-				swap_records(&f_table.records[j], &f_table.records[j + 1]);
-			}
-		}
-		if (sorted) 
-			break;
-	}
-}
-
-
-static uint32_t storage_get_block(uint32_t block_size) {
-	uint8_t free_blocks_num = storage_find_free_blocks_sorted();
-	uint32_t min_size = DATA_FLASH_SIZE;
-	int min_fitting_block_ind = -1;
-	for (uint8_t i = 0; i < free_blocks_num; i++) {
-		if (free_list[i].size < block_size ||
-			free_list[i].size >= min_size)
-			continue;
-		min_size = free_list[i].size;
-		min_fitting_block_ind = i;
-	}
-	if (min_fitting_block_ind < 0)
-		return 0;
-	return free_list[min_fitting_block_ind].addr;
-}
-#endif
-
 
 f_error_t storage_file_create(file_t *file, uint16_t id, uint32_t size) {
 	uint32_t file_size_in_pages = SIZE_TO_PAGES_W_HEADERS(size);
@@ -253,7 +166,7 @@ f_error_t storage_file_create(file_t *file, uint16_t id, uint32_t size) {
 		);
 	}
 	file->id = id;
-	file->cur_addr = file->st_addr + sizeof(file_header_t);
+	file->cur_addr = sizeof(file_header_t);
 	file->size = size;
 	f_table.free_pages -= file_size_in_pages;
 	if (ret != FILE_OK) {
@@ -282,8 +195,13 @@ f_error_t storage_file_delete(file_t *file) {
 
 f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
 	f_error_t ret = FILE_OK;
+	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
+	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_writing_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	uint32_t end_of_file_addr = file->st_addr + SIZE_TO_SIZE_W_HEADERS(file->size);
+	printf("reminder = %08X(%d)\n", reminder, reminder);
+	if (reminder > FMC_FLASH_PAGE_SIZE)
+		end_writing_addr += sizeof(file_header_t);
+	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size);
 	printf("end_writing_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_writing_addr, end_writing_addr,
 		end_of_file_addr, end_of_file_addr
@@ -292,87 +210,128 @@ f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
 		len -= end_writing_addr - end_of_file_addr;
 		ret = FILE_EOF;
 	}
-	uint32_t page_st_addr = file->cur_addr & ~FLASH_PAGE_SIZE_Msk;
-	uint8_t page_ind = (page_st_addr - DATA_FLASH_BASE) >> FLASH_PAGE_SIZE_Pos;
-	
-	uint32_t data_offset = file->cur_addr - page_st_addr;
+
+	uint8_t page_ind = ADDR_TO_PAGE_IND(file->st_addr - DATA_FLASH_BASE);
+	for (uint8_t i = 0; i < ADDR_TO_PAGE_IND(file->cur_addr); i++)
+		page_ind = storage_get_next_page_index_by_id(
+			file->id, 
+			page_ind + 1
+		);
 	
 	if (len + data_offset <= FMC_FLASH_PAGE_SIZE) {
-		storage_write_in_page_wa(data, file->cur_addr, len);
-		file->cur_addr += len;
+		storage_write_in_page_wa(
+			data, 
+			PAGE_IND_TO_ADDR(page_ind) + data_offset,
+			len
+		);
+		file->cur_addr = end_writing_addr;
 		return ret;
 	}
 	
 	int first_page_len = FMC_FLASH_PAGE_SIZE - data_offset;
-	storage_write_in_page_wa(data, file->cur_addr, first_page_len);
-	
+	storage_write_in_page_wa(
+		data, 
+		PAGE_IND_TO_ADDR(page_ind) + data_offset,
+		first_page_len
+	);
+
 	len -= first_page_len;
-	page_ind = storage_get_next_page_index_by_id(file->id, page_ind);
-	file->cur_addr = PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t);
-	data += first_page_len;
+	page_ind = storage_get_next_page_index_by_id(file->id, page_ind + 1);
+	file->cur_addr += first_page_len + sizeof(file_header_t);
+	data += first_page_len >> 2;
 	
-	uint32_t page_size_wo_header = FMC_FLASH_PAGE_SIZE - sizeof(file_header_t);
-	while (len >= page_size_wo_header) {
-		storage_write_in_page_wa(data, file->cur_addr, page_size_wo_header);
-		len -= page_size_wo_header;
-		page_ind = storage_get_next_page_index_by_id(file->id, page_ind);
-		file->cur_addr = PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t);
-		data += page_size_wo_header;
+	while (len >= FLASH_PAGE_SIZE_WO_HEADER) {
+		storage_write_in_page_wa(
+			data, 
+			PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t), 
+			FLASH_PAGE_SIZE_WO_HEADER
+		);
+		len -= FLASH_PAGE_SIZE_WO_HEADER;
+		page_ind = storage_get_next_page_index_by_id(file->id, page_ind + 1);
+		file->cur_addr += FMC_FLASH_PAGE_SIZE;
+		data += FLASH_PAGE_SIZE_WO_HEADER >> 2;
 	}
-	storage_write_in_page_wa(data, file->cur_addr, len);
-	file->cur_addr += len;
+	storage_write_in_page_wa(
+		data, 
+		PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t), 
+		len
+	);
+	file->cur_addr = end_writing_addr;
 	return ret;
 }
 
 
 f_error_t storage_file_read(file_t *file, uint32_t *data, int len) {
 	f_error_t ret = FILE_OK;
+	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
+	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_reading_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	uint32_t end_of_file_addr = file->st_addr + SIZE_TO_SIZE_W_HEADERS(file->size);
+	printf("reminder = %08X(%d)\n", reminder, reminder);
+	if (reminder > FMC_FLASH_PAGE_SIZE)
+		end_reading_addr += sizeof(file_header_t);
+	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size);
 	printf("end_reading_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_reading_addr, end_reading_addr,
 		end_of_file_addr, end_of_file_addr
 	);
 	if (end_reading_addr >= end_of_file_addr) {
 		len -= end_reading_addr - end_of_file_addr;
-		return FILE_EOF;
+		ret = FILE_EOF;
 	}
-	uint32_t page_st_addr = file->cur_addr & ~FLASH_PAGE_SIZE_Msk;
-	uint8_t page_ind = (page_st_addr - DATA_FLASH_BASE) >> FLASH_PAGE_SIZE_Pos;
-	
-	uint32_t data_offset = file->cur_addr - page_st_addr;
+	uint8_t page_ind = ADDR_TO_PAGE_IND(file->st_addr - DATA_FLASH_BASE);
+	for (uint8_t i = 0; i < ADDR_TO_PAGE_IND(file->cur_addr); i++)
+		page_ind = storage_get_next_page_index_by_id(
+			file->id, 
+			page_ind + 1
+		);
 	
 	if (len + data_offset <= FMC_FLASH_PAGE_SIZE) {
-		storage_read_page_wa(data, file->cur_addr, len);
-		file->cur_addr += len;
+		storage_read_page_wa(
+			data, 
+			PAGE_IND_TO_ADDR(page_ind) + data_offset,
+			len
+		);
+		file->cur_addr = end_reading_addr;
 		return ret;
 	}
 	
 	int first_page_len = FMC_FLASH_PAGE_SIZE - data_offset;
-	storage_read_page_wa(data, file->cur_addr, first_page_len);
-	
+	storage_read_page_wa(
+		data, 
+		PAGE_IND_TO_ADDR(page_ind) + data_offset,
+		first_page_len
+	);
+
 	len -= first_page_len;
-	page_ind = storage_get_next_page_index_by_id(file->id, page_ind);
-	file->cur_addr = PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t);
-	data += first_page_len;
+	page_ind = storage_get_next_page_index_by_id(file->id, page_ind + 1);
+	file->cur_addr += first_page_len + sizeof(file_header_t);
+	data += first_page_len >> 2;
 	
-	uint32_t page_size_wo_header = FMC_FLASH_PAGE_SIZE - sizeof(file_header_t);
-	while (len >= page_size_wo_header) {
-		storage_read_page_wa(data, file->cur_addr, page_size_wo_header);
-		len -= page_size_wo_header;
-		page_ind = storage_get_next_page_index_by_id(file->id, page_ind);
-		file->cur_addr = PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t);
-		data += page_size_wo_header;
+	while (len >= FLASH_PAGE_SIZE_WO_HEADER) {
+		storage_read_page_wa(
+			data, 
+			PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t), 
+			FLASH_PAGE_SIZE_WO_HEADER
+		);
+		len -= FLASH_PAGE_SIZE_WO_HEADER;
+		page_ind = storage_get_next_page_index_by_id(file->id, page_ind + 1);
+		file->cur_addr += FMC_FLASH_PAGE_SIZE;
+		data += FLASH_PAGE_SIZE_WO_HEADER >> 2;
 	}
-	storage_read_page_wa(data, file->cur_addr, len);
-	file->cur_addr += len;
+	storage_read_page_wa(
+		data, 
+		PAGE_IND_TO_ADDR(page_ind) + sizeof(file_header_t), 
+		len
+	);
+	file->cur_addr = end_reading_addr;
 	return ret;
 }
 
 
-void storage_file_set_cursor(file_t *file, uint32_t cursor) {
-	file->cur_addr = file->st_addr + sizeof(file_header_t) + 
-		(cursor / (FMC_FLASH_PAGE_SIZE - sizeof(file_header_t))) * FMC_FLASH_PAGE_SIZE +
-		cursor % (FMC_FLASH_PAGE_SIZE - sizeof(file_header_t));
+f_error_t storage_file_set_cursor(file_t *file, uint32_t cursor) {
+	if (cursor >= file->size)
+		return FILE_EOF;
+	file->cur_addr = SIZE_TO_SIZE_W_HEADERS(cursor) + sizeof(file_header_t);
+	return FILE_OK;
 }
 
