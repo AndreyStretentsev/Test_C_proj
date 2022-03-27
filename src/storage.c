@@ -38,9 +38,9 @@ typedef struct {
 	(SIZE_TO_PAGES_ROUND_UP(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) + (size)))
 
 #define SIZE_TO_SIZE_W_HEADERS(size)	\
-	(((SIZE_TO_PAGES_ROUND_DW(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) \
-	 + (size))) << FLASH_PAGE_SIZE_Pos) \
-	 + ((size) & FLASH_PAGE_SIZE_Msk))
+	(((SIZE_TO_PAGES_ROUND_DW(SIZE_TO_PAGES_ROUND_UP(size) * sizeof(file_header_t) + (size))) \
+	<< FLASH_PAGE_SIZE_Pos) \
+	 + ((size) & FLASH_PAGE_SIZE_Msk) + SIZE_TO_PAGES_ROUND_DW(size) * sizeof(file_header_t))
 
 #define FLASH_PAGE_SIZE_WO_HEADER	(FMC_FLASH_PAGE_SIZE - sizeof(file_header_t))
 
@@ -198,10 +198,9 @@ f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
 	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
 	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_writing_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	printf("reminder = %08X(%d)\n", reminder, reminder);
-	if (reminder > FMC_FLASH_PAGE_SIZE)
+	if (reminder >= FMC_FLASH_PAGE_SIZE)
 		end_writing_addr += sizeof(file_header_t);
-	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size);
+	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
 	printf("end_writing_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_writing_addr, end_writing_addr,
 		end_of_file_addr, end_of_file_addr
@@ -266,10 +265,9 @@ f_error_t storage_file_read(file_t *file, uint32_t *data, int len) {
 	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
 	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_reading_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	printf("reminder = %08X(%d)\n", reminder, reminder);
-	if (reminder > FMC_FLASH_PAGE_SIZE)
+	if (reminder >= FMC_FLASH_PAGE_SIZE)
 		end_reading_addr += sizeof(file_header_t);
-	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size);
+	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
 	printf("end_reading_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_reading_addr, end_reading_addr,
 		end_of_file_addr, end_of_file_addr
