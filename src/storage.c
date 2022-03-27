@@ -130,7 +130,7 @@ f_error_t storage_get_file_by_id(file_t *file, uint16_t id) {
 	file_header_t hfile;
 	storage_read_page_wa((uint32_t *)&hfile, file->st_addr, sizeof(hfile));
 	file->size = hfile.size;
-	file->cur_addr = file->st_addr;
+	file->cur_addr = sizeof(file_header_t);
 	return FILE_OK;
 }
 

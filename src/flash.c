@@ -18,11 +18,14 @@ void flash_write(uint32_t addr, uint32_t data) {
         data, data, 
         addr, addr
     );
-    flash_mem[addr >> 2] = data;
+    flash_mem[addr >> 2] &= data;
 }
 
 void flash_erase(uint32_t addr) {
-    memset(flash_mem[addr >> 2], 0xFF, FMC_FLASH_PAGE_SIZE);
+    printf("%08X | %11d | page erased\n", 
+        addr, addr
+    );
+    memset(&flash_mem[addr >> 2], 0xFFFFFFFF, FMC_FLASH_PAGE_SIZE);
 }
 
 void flash_init() {
