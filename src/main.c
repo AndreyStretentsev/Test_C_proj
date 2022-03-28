@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/stat.h>
 #include "main.h"
 
@@ -90,21 +89,15 @@ bool file_delete_test(uint16_t id) {
 }
 
 bool run_tests() {
-    uint16_t file1_id = 0;
-    while (file1_id == 0)
-        file1_id = rand();
+    uint16_t file1_id = storage_generate_id();
     if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file1_id, 512))
         goto test_fail;
 
-    uint16_t file2_id = 0;
-    while (file2_id == 0)
-        file2_id = rand();
+    uint16_t file2_id = storage_generate_id();
     if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file2_id, 512))
         goto test_fail;
 
-    uint16_t file3_id = 0;
-    while (file3_id == 0)
-        file3_id = rand();
+    uint16_t file3_id = storage_generate_id();
     if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file3_id, 512))
         goto test_fail;
 

@@ -1,8 +1,9 @@
 
-#include "storage.h"
 #include <string.h>
-#include "flash.h"
 #include <stdio.h>
+#include "flash.h"
+
+#include "storage.h"
 
 #define DATA_FLASH_PAGES_NUM	(DATA_FLASH_SIZE / FMC_FLASH_PAGE_SIZE)
 #define FILES_NUM_MAX	DATA_FLASH_PAGES_NUM
@@ -120,6 +121,15 @@ static int storage_get_next_page_index_by_id(uint32_t id, uint8_t from_index) {
 	return page_index;
 }
 
+uint16_t storage_generate_id() {
+	uint16_t id = 0;
+	while (id == 0) {
+		id = rand();
+		if (storage_get_next_page_index_by_id(id, 0) >= 0)
+			id = 0;
+	}
+	return id;
+}
 
 f_error_t storage_get_file_by_id(file_t *file, uint16_t id) {
 	int first_file_page_ind = storage_get_next_page_index_by_id(id, 0);
