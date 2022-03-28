@@ -5,10 +5,10 @@
 
 #include "storage.h"
 
-#define BB_GIF_FILE_NAME   "D:\\Projects\\Test_c_proj\\bb.gif"
-#define PUTIN_GIF_FILE_NAME "D:\\Projects\\Test_c_proj\\put.gif"
-#define OCEAN_GIF_FILE_NAME "D:\\Projects\\Test_c_proj\\ocean.gif"
-#define NEW_GIF_FILE_NAME   "D:\\Projects\\Test_c_proj\\copy.gif"
+#define BB_GIF_FILE_NAME    "bb.gif"
+#define PUTIN_GIF_FILE_NAME "put.gif"
+#define OCEAN_GIF_FILE_NAME "ocean.gif"
+#define NEW_GIF_FILE_NAME   "copy.gif"
 
 bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chunk_size) {
     file_t file;
