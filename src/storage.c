@@ -203,21 +203,23 @@ f_error_t storage_file_delete(file_t *file) {
 }
 
 
-f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
-	f_error_t ret = FILE_OK;
+int storage_file_write(file_t *file, uint32_t *data, int len) {
+	int written = len;
 	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
-	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_writing_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	if (reminder >= FMC_FLASH_PAGE_SIZE)
+	if (data_offset + (len & FLASH_PAGE_SIZE_Msk) >= FMC_FLASH_PAGE_SIZE)
 		end_writing_addr += sizeof(file_header_t);
 	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
 	printf("end_writing_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_writing_addr, end_writing_addr,
 		end_of_file_addr, end_of_file_addr
 	);
-	if (end_writing_addr >= end_of_file_addr) {
+	if (file->cur_addr == end_of_file_addr) 
+		return 0;
+	if (end_writing_addr > end_of_file_addr) {
 		len -= end_writing_addr - end_of_file_addr;
-		ret = FILE_EOF;
+		end_writing_addr = end_of_file_addr;
+		written = len;
 	}
 
 	uint8_t page_ind = ADDR_TO_PAGE_IND(file->st_addr - DATA_FLASH_BASE);
@@ -234,7 +236,7 @@ f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
 			len
 		);
 		file->cur_addr = end_writing_addr;
-		return ret;
+		return written;
 	}
 	
 	int first_page_len = FMC_FLASH_PAGE_SIZE - data_offset;
@@ -266,25 +268,27 @@ f_error_t storage_file_write(file_t *file, uint32_t *data, int len) {
 		len
 	);
 	file->cur_addr = end_writing_addr;
-	return ret;
+	return written;
 }
 
 
-f_error_t storage_file_read(file_t *file, uint32_t *data, int len) {
-	f_error_t ret = FILE_OK;
+int storage_file_read(file_t *file, uint32_t *data, int len) {
+	int read = len;
 	uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
-	uint32_t reminder = data_offset + (len & FLASH_PAGE_SIZE_Msk);
 	uint32_t end_reading_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(len);
-	if (reminder >= FMC_FLASH_PAGE_SIZE)
+	if (data_offset + (len & FLASH_PAGE_SIZE_Msk) >= FMC_FLASH_PAGE_SIZE)
 		end_reading_addr += sizeof(file_header_t);
 	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
 	printf("end_reading_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
 		end_reading_addr, end_reading_addr,
 		end_of_file_addr, end_of_file_addr
 	);
-	if (end_reading_addr >= end_of_file_addr) {
+	if (file->cur_addr == end_of_file_addr) 
+		return 0;
+	if (end_reading_addr > end_of_file_addr) {
 		len -= end_reading_addr - end_of_file_addr;
-		ret = FILE_EOF;
+		end_reading_addr = end_of_file_addr;
+		read = len;
 	}
 	uint8_t page_ind = ADDR_TO_PAGE_IND(file->st_addr - DATA_FLASH_BASE);
 	for (uint8_t i = 0; i < ADDR_TO_PAGE_IND(file->cur_addr); i++)
@@ -300,7 +304,7 @@ f_error_t storage_file_read(file_t *file, uint32_t *data, int len) {
 			len
 		);
 		file->cur_addr = end_reading_addr;
-		return ret;
+		return read;
 	}
 	
 	int first_page_len = FMC_FLASH_PAGE_SIZE - data_offset;
@@ -332,7 +336,7 @@ f_error_t storage_file_read(file_t *file, uint32_t *data, int len) {
 		len
 	);
 	file->cur_addr = end_reading_addr;
-	return ret;
+	return read;
 }
 
 

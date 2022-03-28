@@ -63,10 +63,12 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
         return false;
     }
     printf("Copying file %ld contents\n", id);
+    int r;
     do {
-        ret = storage_file_read(&file, (uint32_t *)fbuf, chunk_size);
-        fwrite(fbuf, sizeof(uint8_t), chunk_size, fp);
-    } while (ret != FILE_EOF);
+        r = storage_file_read(&file, (uint32_t *)fbuf, chunk_size);
+        printf("read %d\n", r);
+        fwrite(fbuf, sizeof(uint8_t), r, fp);
+    } while (r != 0);
     fclose(fp);
     return true;
 }
