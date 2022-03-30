@@ -3,6 +3,7 @@
 #include "main.h"
 
 #include "storage.h"
+#include "gif.h"
 
 #define BB_GIF_FILE_NAME    "bb.gif"
 #define PUTIN_GIF_FILE_NAME "put.gif"
@@ -73,6 +74,27 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
     return true;
 }
 
+bool gif_test(uint16_t id) {
+    file_t file;
+    f_error_t ret_f = FILE_OK;
+    gif_error_t ret_g = G_OK;
+    ret_f = storage_get_file_by_id(&file, id);
+    if (ret_f != FILE_OK) {
+        printf("File not found. Reason = %d\n", ret_f);
+        return false;
+    }
+    if (!is_gif_file(&file)) {
+        printf("Not a GIF file\n");
+        return false;
+    }
+    ret_g = gif_execute(&file);
+    if (ret_g != G_OK) {
+        printf("gif_execute returned %d", ret_g);
+        return false;
+    }
+    return true;
+}
+
 bool file_delete_test(uint16_t id) {
     file_t file;
     f_error_t ret = FILE_OK;
@@ -92,24 +114,27 @@ bool file_delete_test(uint16_t id) {
 
 bool run_tests() {
     uint16_t file1_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file1_id, 512))
+    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file1_id, 4080))
         goto test_fail;
 
     uint16_t file2_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file2_id, 512))
+    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
     uint16_t file3_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file3_id, 512))
+    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file3_id, 4080))
         goto test_fail;
 
     if (!file_delete_test(file2_id))
         goto test_fail;
 
-    if (!file_copy_to_storage_test(OCEAN_GIF_FILE_NAME, file2_id, 512))
+    if (!file_copy_to_storage_test(OCEAN_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 512))
+    if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
+        goto test_fail;
+
+    if (!gif_test(file1_id))
         goto test_fail;
 
     printf("All test results are successfull!\n");
