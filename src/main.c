@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <sys/stat.h>
+#include <windows.h>
 #include "main.h"
 
 #include "storage.h"
 #include "gif.h"
+#include "gifdec.h"
 
 #define BB_GIF_FILE_NAME    "bb.gif"
 #define PUTIN_GIF_FILE_NAME "put.gif"
@@ -134,7 +136,7 @@ bool run_tests() {
     if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    if (!gif_test(file1_id))
+    if (!gif_test(file2_id))
         goto test_fail;
 
     printf("All test results are successfull!\n");
@@ -144,10 +146,30 @@ test_fail:
     return false;
 }
 
+void gifdec_teset(const char *filename) {
+    gd_GIF *gif = gd_open_gif(filename);
+    char *buffer = malloc(gif->width * gif->height * 3);
+    void *display = console_create_display(gif->width, gif->height);
+    for (unsigned looped = 1;; looped++) {
+        while (gd_get_frame(gif)) {
+            gd_render_frame(gif, buffer);
+            console_display_image(display, buffer);
+            Sleep(gif->gce.delay * 10);
+        }
+        if (looped == gif->loop_count)
+            break;
+        gd_rewind(gif);
+    }
+    free(buffer);
+    gd_close_gif(gif);
+}
+
 int main() {
     flash_init();
     storage_init();
     if (!run_tests())
         exit(1);
+    
+    gifdec_teset("put.gif");
     exit(0);
 }

@@ -1,12 +1,13 @@
 #include "string.h"
 #include "math.h"
 #include "internal_palette.h"
+#include "ansiGraphic2.1.h"
 #include "gif.h"
 
 #define MAX_PALETTE_SIZE		256
 #define INTERNAL_PALETTE_SIZE	216
 
-#define FILE_BUF_SIZE			256
+#define FILE_BUF_SIZE			512
 
 typedef struct {
 	uint16_t width;
@@ -64,6 +65,8 @@ static struct {
 	
 	uint16_t scr_width;
 	uint16_t scr_height;
+
+	uint8_t color_resolution;
 	
 	uint8_t bg_color_ind;
 } gif = {
@@ -81,6 +84,8 @@ static struct {
 	.l_palette = {0},
 	.l_palette_size = 0,
 	
+	.color_resolution = 1,
+
 	.bg_color_ind = 0,
 };
 
@@ -111,19 +116,21 @@ int parse_gif_header(const gif_header_t *hgif) {
 		return 0;
 	
 	gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
-	
+	gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
 	gif.bg_color_ind = hgif->scr.bg_color_ind;
-	
 	return 1;
 }
 
 
-void parse_gpalette(const uint8_t *palette, uint8_t size) {
-	for (uint16_t i = 0; i < size * DISP_LEDS_NUM; i += DISP_LEDS_NUM) {
-		gif.g_palette[i] = palette[i];
-		gif.g_palette[i + 1] = palette[i + 1];
-		gif.g_palette[i + 2] = palette[i + 2];
-		printf("[%02X%02X%02X]\n", gif.g_palette[i], gif.g_palette[i + 1], gif.g_palette[i + 2]);
+void print_gpalette() {
+	
+	for (uint16_t i = 0; i < gif.g_palette_size * DISP_LEDS_NUM; i += DISP_LEDS_NUM) {
+		printf(
+			"[%02X%02X%02X]\n", 
+			gif.g_palette[i], 
+			gif.g_palette[i + 1], 
+			gif.g_palette[i + 2]
+			);
 	}
 }
 
@@ -135,25 +142,50 @@ gif_error_t gif_execute(file_t *file) {
 
 	storage_file_set_cursor(file, 0);
 	
-	int header_size = (sizeof(gif_header_t) & 0xFFFFFFFC) + (sizeof(gif_header_t) & 0x03 ? 4 : 0);
-	printf("header_size = %d\n", header_size);
-	if (storage_file_read(file, (uint32_t *)file_buf, header_size) != header_size)
-		return G_NOT_GIF_FILE;
+	storage_file_read(file, (uint32_t *)file_buf, FILE_BUF_SIZE);
+	int file_ptr = 0;
 
 	if (parse_gif_header((gif_header_t *)file_buf)) {
 		printf("have global palette\n");
-		if (storage_file_read(file, (uint32_t *)file_buf, gif.g_palette_size * DISP_LEDS_NUM) !=
-			 gif.g_palette_size * DISP_LEDS_NUM)
-			return G_NOT_GIF_FILE;
-		parse_gpalette(file_buf, gif.g_palette_size);
+		printf("global_palette_size = %d\n", gif.g_palette_size);
+		memcpy(
+			gif.g_palette, 
+			&file_buf[sizeof(gif_header_t)], 
+			gif.g_palette_size * DISP_LEDS_NUM
+			);
+		file_ptr = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
 	} else {
 		printf("have no global palette\n");
+		file_ptr = sizeof(gif_header_t);
 	}
 
-	printf("gif.scr_width = %d\n", gif.scr_width);
-	printf("gif.scr_height = %d\n", gif.scr_height);
-	printf("gif.g_palette_size = %d\n", gif.g_palette_size);
-	printf("gif.bg_color_ind = %d\n", gif.bg_color_ind);
+
+
+	
 	return ret;
 }
 
+void *console_create_display(int width, int height) {
+	ansigraphic_image_RGB_t *screen = 
+	ansigraphic_newImage_RGB(width, height);
+	return screen;
+}
+
+void console_display_image(void *display, uint8_t *raw_image) {
+	ansigraphic_image_RGB_t *screen = (ansigraphic_image_RGB_t *)display;
+
+	ansigraphic_ivector2_t xy;
+	for (xy.y = 0; xy.y < screen->height; xy.y++) {
+		for (xy.x = 0; xy.x < screen->width; xy.x++) {
+			ansigraphic_color_RGB_t color;
+			ansigraphic_color_RGB_set(
+				&color, 
+				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM], 
+				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM + 1], 
+				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM + 2]
+			);
+			ansigraphic_pixelSetColor_RGB(screen, &xy, &color, &color);
+		}
+	}
+	ansigraphic_imagePrint_RGB(screen);
+}

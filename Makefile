@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Iinc
 LDFLAGS =
-SOURCES = src/main.c src/storage.c src/flash.c src/gif.c
+SOURCES = src/main.c src/storage.c src/flash.c src/gif.c src/ansiGraphic2.1.c src/gifdec.c
 INCLUDES = $(wildcard inc/*.h)
 OBJECTS = $(addprefix $(BUILD_DIR)/,$(notdir $(SOURCES:.c=.o)))
 vpath %.c $(sort $(dir $(SOURCES)))

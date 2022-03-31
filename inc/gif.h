@@ -11,5 +11,7 @@ typedef enum {
 
 bool is_gif_file(file_t *file);
 gif_error_t gif_execute(file_t *file);
+void *console_create_display(int width, int height);
+void console_display_image(void *display, uint8_t *raw_image);
 
 #endif // GIF_H
