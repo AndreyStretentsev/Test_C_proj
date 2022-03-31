@@ -170,6 +170,6 @@ int main() {
     if (!run_tests())
         exit(1);
     
-    gifdec_teset("put.gif");
+    gifdec_teset("bb.gif");
     exit(0);
 }

@@ -57,10 +57,10 @@ static struct {
 	
 	uint8_t i_palette[INTERNAL_PALETTE_SIZE][DISP_LEDS_NUM];
 	
-	uint8_t g_palette[MAX_PALETTE_SIZE];
+	uint8_t g_palette[MAX_PALETTE_SIZE][DISP_LEDS_NUM];
 	uint16_t g_palette_size;
 	
-	uint8_t l_palette[MAX_PALETTE_SIZE];
+	uint8_t l_palette[MAX_PALETTE_SIZE][DISP_LEDS_NUM];
 	uint16_t l_palette_size;
 	
 	uint16_t scr_width;
@@ -167,7 +167,7 @@ gif_error_t gif_execute(file_t *file) {
 
 void *console_create_display(int width, int height) {
 	ansigraphic_image_RGB_t *screen = 
-	ansigraphic_newImage_RGB(width, height);
+	ansigraphic_newImage_RGB(width * 2, height);
 	return screen;
 }
 
@@ -180,9 +180,9 @@ void console_display_image(void *display, uint8_t *raw_image) {
 			ansigraphic_color_RGB_t color;
 			ansigraphic_color_RGB_set(
 				&color, 
-				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM], 
-				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM + 1], 
-				raw_image[(xy.y * screen->width + xy.x) * DISP_LEDS_NUM + 2]
+				raw_image[((screen->height - xy.y - 1) * screen->width + xy.x >> 1) * DISP_LEDS_NUM], 
+				raw_image[((screen->height - xy.y - 1) * screen->width + xy.x >> 1) * DISP_LEDS_NUM + 1], 
+				raw_image[((screen->height - xy.y - 1) * screen->width + xy.x >> 1) * DISP_LEDS_NUM + 2]
 			);
 			ansigraphic_pixelSetColor_RGB(screen, &xy, &color, &color);
 		}
