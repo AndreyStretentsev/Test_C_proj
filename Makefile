@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall -Iinc
+CFLAGS = -g -Wall -Iinc -mno-ms-bitfields
 LDFLAGS =
 SOURCES = src/main.c src/storage.c src/flash.c src/gif.c src/ansiGraphic2.1.c src/gifdec.c
 INCLUDES = $(wildcard inc/*.h)

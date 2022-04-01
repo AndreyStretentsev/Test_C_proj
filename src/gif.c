@@ -22,7 +22,7 @@ typedef struct {
 			} __attribute__ ((packed)) bits;
 	} __attribute__ ((packed)) palette_flags;
 	uint8_t bg_color_ind;
-	uint8_t pixel_proportion;
+	uint8_t aspect;
 } __attribute__ ((packed)) screen_descriptor_t;
 
 typedef struct {
@@ -49,7 +49,8 @@ typedef struct {
 	screen_descriptor_t scr;
 } __attribute__ ((packed)) gif_header_t;	
 
-static uint8_t __attribute__((aligned((4)))) file_buf[FILE_BUF_SIZE] = {0};
+static uint8_t __attribute__((aligned((4)))) file_buf[FILE_BUF_SIZE];
+static uint8_t frame_buf[DISP_COLS_NUM][DISP_ROWS_NUM][DISP_LEDS_NUM];
 
 static struct {
 	uint8_t *next_block;
@@ -69,6 +70,11 @@ static struct {
 	uint8_t color_resolution;
 	
 	uint8_t bg_color_ind;
+	uint8_t bg_color[DISP_LEDS_NUM];
+
+	uint32_t file_buf_addr;
+	uint16_t file_buf_offset;
+
 } gif = {
 	.next_block = NULL,
 	.cur_block = NULL,
@@ -87,13 +93,16 @@ static struct {
 	.color_resolution = 1,
 
 	.bg_color_ind = 0,
+
+	.file_buf_addr = 0,
+	.file_buf_offset = 0,
 };
 
 bool is_gif_file(file_t *file) {
 	if (file == NULL)
 		return false;
 	
-	storage_file_set_cursor(file, 0);
+	storage_file_set_cursor(file, 0, S_SET);
 	storage_file_read(file, (uint32_t *)file_buf, 8);
 	gif_header_t *f = (gif_header_t *)file_buf;
 	
@@ -107,62 +116,53 @@ bool is_gif_file(file_t *file) {
 }
 
 
-int parse_gif_header(const gif_header_t *hgif) {
-	
-	gif.scr_width = hgif->scr.width;
-	gif.scr_height = hgif->scr.height;
-	
-	if (!hgif->scr.palette_flags.bits.have_global)
-		return 0;
-	
-	gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
-	gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
-	gif.bg_color_ind = hgif->scr.bg_color_ind;
-	return 1;
-}
-
-
 void print_gpalette() {
 	
-	for (uint16_t i = 0; i < gif.g_palette_size * DISP_LEDS_NUM; i += DISP_LEDS_NUM) {
+	for (uint16_t i = 0; i < gif.g_palette_size; i ++) {
 		printf(
 			"[%02X%02X%02X]\n", 
-			gif.g_palette[i], 
-			gif.g_palette[i + 1], 
-			gif.g_palette[i + 2]
+			gif.g_palette[i][0], 
+			gif.g_palette[i][1], 
+			gif.g_palette[i][2]
 			);
 	}
 }
 
 
-gif_error_t gif_execute(file_t *file) {
+gif_error_t gif_open(file_t *file) {
 	gif_error_t ret = G_OK;
 	if (file == NULL)
 		return G_NOT_GIF_FILE;
 
-	storage_file_set_cursor(file, 0);
-	
+	gif.file_buf_addr = 0;
+	storage_file_set_cursor(file, gif.file_buf_addr, S_SET);
 	storage_file_read(file, (uint32_t *)file_buf, FILE_BUF_SIZE);
-	int file_ptr = 0;
 
-	if (parse_gif_header((gif_header_t *)file_buf)) {
-		printf("have global palette\n");
-		printf("global_palette_size = %d\n", gif.g_palette_size);
+	gif_header_t *hgif = (gif_header_t *)file_buf;
+	gif.scr_width = hgif->scr.width;
+	gif.scr_height = hgif->scr.height;
+	
+	if (hgif->scr.palette_flags.bits.have_global) {
+		gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
+		gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
+		gif.bg_color_ind = hgif->scr.bg_color_ind;
 		memcpy(
 			gif.g_palette, 
 			&file_buf[sizeof(gif_header_t)], 
 			gif.g_palette_size * DISP_LEDS_NUM
-			);
-		file_ptr = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
+		);
+		memcpy(gif.bg_color, gif.g_palette[gif.bg_color_ind], DISP_LEDS_NUM);
+		gif.file_buf_offset = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
 	} else {
-		printf("have no global palette\n");
-		file_ptr = sizeof(gif_header_t);
+		gif.file_buf_offset = sizeof(gif_header_t);
+		gif.g_palette_size = 0;
 	}
 
-
-
-	
 	return ret;
+}
+
+gif_error_t gif_get_frame() {
+	
 }
 
 void *console_create_display(int width, int height) {

@@ -3,6 +3,14 @@
 
 #include "main.h"
 
+
+enum {
+	S_CUR,
+	S_SET,
+	S_END
+};
+
+
 typedef struct {
 	uint16_t id;
 	uint32_t st_addr;
@@ -18,6 +26,7 @@ typedef enum {
 	FILE_ALREADY_EXISTS = -3,
 	FILE_EOF = -4,
 	FILE_INTERNAL_ERROR = -5,
+	FILE_INVALID_PARAM = -6
 } f_error_t;
 
 
@@ -28,5 +37,5 @@ f_error_t storage_file_create(file_t *file, uint16_t id, uint32_t size);
 int storage_file_write(file_t *file, uint32_t *data, int len);
 int storage_file_read(file_t *file, uint32_t *data, int len);
 f_error_t storage_file_delete(file_t *file);
-f_error_t storage_file_set_cursor(file_t *file, uint32_t cursor);
+f_error_t storage_file_set_cursor(file_t *file, int cursor, int origin);
 #endif // STORAGE_H

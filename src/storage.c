@@ -340,10 +340,39 @@ int storage_file_read(file_t *file, uint32_t *data, int len) {
 }
 
 
-f_error_t storage_file_set_cursor(file_t *file, uint32_t cursor) {
+f_error_t storage_file_set_cursor(file_t *file, int cursor, int origin) {
 	if (cursor >= file->size)
 		return FILE_EOF;
-	file->cur_addr = SIZE_TO_SIZE_W_HEADERS(cursor) + sizeof(file_header_t);
+	switch (origin) {
+		case S_CUR: {
+			uint32_t data_offset = file->cur_addr & FLASH_PAGE_SIZE_Msk;
+			uint32_t setting_addr = file->cur_addr + SIZE_TO_SIZE_W_HEADERS(cursor);
+			if (data_offset + (cursor & FLASH_PAGE_SIZE_Msk) >= FMC_FLASH_PAGE_SIZE)
+				setting_addr += sizeof(file_header_t);
+			file->cur_addr = setting_addr;
+			break;
+		}
+		case S_END: {
+			if (cursor > 0) 
+				return FILE_EOF;
+			cursor = - cursor;
+			uint32_t data_offset = (SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t)) & 
+				FLASH_PAGE_SIZE_Msk;
+			uint32_t setting_addr = (SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t)) -
+				SIZE_TO_SIZE_W_HEADERS(cursor);
+			if (data_offset - (cursor & FLASH_PAGE_SIZE_Msk) < sizeof(file_header_t))
+				setting_addr -= sizeof(file_header_t);
+			file->cur_addr = setting_addr;
+			break;
+		}
+		case S_SET: {
+			file->cur_addr = SIZE_TO_SIZE_W_HEADERS(cursor) + sizeof(file_header_t);
+			break;
+		}
+		default:
+			return FILE_INVALID_PARAM;
+			break;
+	}
 	return FILE_OK;
 }
 

@@ -89,9 +89,9 @@ bool gif_test(uint16_t id) {
         printf("Not a GIF file\n");
         return false;
     }
-    ret_g = gif_execute(&file);
+    ret_g = gif_open(&file);
     if (ret_g != G_OK) {
-        printf("gif_execute returned %d", ret_g);
+        printf("gif_open returned %d", ret_g);
         return false;
     }
     return true;
@@ -136,7 +136,7 @@ bool run_tests() {
     if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    if (!gif_test(file2_id))
+    if (!gif_test(file1_id))
         goto test_fail;
 
     printf("All test results are successfull!\n");
@@ -170,6 +170,6 @@ int main() {
     if (!run_tests())
         exit(1);
     
-    gifdec_teset("bb.gif");
+    // gifdec_teset("bb.gif");
     exit(0);
 }
