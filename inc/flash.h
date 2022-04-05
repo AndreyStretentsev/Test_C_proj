@@ -12,5 +12,6 @@
 void flash_init();
 void flash_write(uint32_t addr, uint32_t data);
 uint32_t flash_read(uint32_t addr);
+uint8_t flash_read_direct(uint32_t addr);
 void flash_erase(uint32_t addr);
 #endif // FLASH_H

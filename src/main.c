@@ -15,7 +15,7 @@
 bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chunk_size) {
     file_t file;
     FILE *fp = NULL;
-    f_error_t ret = FILE_OK;
+    f_err_t ret = FILE_OK;
     uint8_t __attribute__((aligned(4))) fbuf[chunk_size];
 
     printf("Open %s\n", filename);
@@ -51,7 +51,7 @@ bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chun
 bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t chunk_size) {
     file_t file;
     FILE *fp = NULL;
-    f_error_t ret = FILE_OK;
+    f_err_t ret = FILE_OK;
     uint8_t __attribute__((aligned(4))) fbuf[chunk_size];
     printf("Creating %s\n", filename);
     fp = fopen(filename, "wb");
@@ -78,8 +78,8 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
 
 bool gif_test(uint16_t id) {
     file_t file;
-    f_error_t ret_f = FILE_OK;
-    gif_error_t ret_g = G_OK;
+    f_err_t ret_f = FILE_OK;
+    gif_err_t ret_g = G_OK;
     ret_f = storage_get_file_by_id(&file, id);
     if (ret_f != FILE_OK) {
         printf("File not found. Reason = %d\n", ret_f);
@@ -89,7 +89,8 @@ bool gif_test(uint16_t id) {
         printf("Not a GIF file\n");
         return false;
     }
-    ret_g = gif_open(&file);
+    gif_t animation;
+    ret_g = gif_open(&file, &animation);
     if (ret_g != G_OK) {
         printf("gif_open returned %d", ret_g);
         return false;
@@ -99,7 +100,7 @@ bool gif_test(uint16_t id) {
 
 bool file_delete_test(uint16_t id) {
     file_t file;
-    f_error_t ret = FILE_OK;
+    f_err_t ret = FILE_OK;
     printf("Deleting file %ld in storage\n", id);
     ret = storage_get_file_by_id(&file, id);
     if (ret != FILE_OK) {

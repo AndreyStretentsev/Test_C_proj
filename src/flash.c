@@ -5,6 +5,10 @@
 
 uint32_t *flash_mem = NULL;
 
+uint8_t flash_read_direct(uint32_t addr) {
+    return ((uint8_t *)flash_mem)[addr];
+}
+
 uint32_t flash_read(uint32_t addr) {
     // printf("%08X | %11d | read from | %08X | %11d\n", 
     //     flash_mem[addr >> 2], flash_mem[addr >> 2], 

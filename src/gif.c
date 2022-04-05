@@ -1,13 +1,22 @@
 #include "string.h"
 #include "math.h"
-#include "internal_palette.h"
 #include "ansiGraphic2.1.h"
 #include "gif.h"
 
-#define MAX_PALETTE_SIZE		256
-#define INTERNAL_PALETTE_SIZE	216
+#define MIN(A, B) ((A) < (B) ? (A) : (B))
+#define MAX(A, B) ((A) > (B) ? (A) : (B))
 
-#define FILE_BUF_SIZE			512
+typedef struct {
+    uint16_t length;
+    uint16_t prefix;
+    uint8_t  suffix;
+} entry_t;
+
+typedef struct {
+    int bulk;
+    int nentries;
+    entry_t *entries;
+} table_t;
 
 typedef struct {
 	uint16_t width;
@@ -26,7 +35,6 @@ typedef struct {
 } __attribute__ ((packed)) screen_descriptor_t;
 
 typedef struct {
-	uint8_t id;
 	uint16_t x_offset;
 	uint16_t y_offset;
 	uint16_t width;
@@ -47,64 +55,34 @@ typedef struct {
 	char sig[3];
 	char ver[3];
 	screen_descriptor_t scr;
-} __attribute__ ((packed)) gif_header_t;	
+} __attribute__ ((packed)) gif_header_t;
 
-static uint8_t __attribute__((aligned((4)))) file_buf[FILE_BUF_SIZE];
-static uint8_t frame_buf[DISP_COLS_NUM][DISP_ROWS_NUM][DISP_LEDS_NUM];
 
-static struct {
-	uint8_t *next_block;
-	uint8_t *cur_block;
-	
-	uint8_t i_palette[INTERNAL_PALETTE_SIZE][DISP_LEDS_NUM];
-	
-	uint8_t g_palette[MAX_PALETTE_SIZE][DISP_LEDS_NUM];
-	uint16_t g_palette_size;
-	
-	uint8_t l_palette[MAX_PALETTE_SIZE][DISP_LEDS_NUM];
-	uint16_t l_palette_size;
-	
-	uint16_t scr_width;
-	uint16_t scr_height;
-
-	uint8_t color_resolution;
-	
-	uint8_t bg_color_ind;
-	uint8_t bg_color[DISP_LEDS_NUM];
-
-	uint32_t file_buf_addr;
-	uint16_t file_buf_offset;
-
-} gif = {
-	.next_block = NULL,
-	.cur_block = NULL,
-	
-	.scr_width = DISP_COLS_NUM,
-	.scr_height = DISP_ROWS_NUM,
-	
-	.i_palette = GIF_INTERNAL_PALETTE,
-	
-	.g_palette = {0},
-	.g_palette_size = 0,
-	
-	.l_palette = {0},
-	.l_palette_size = 0,
-	
-	.color_resolution = 1,
-
-	.bg_color_ind = 0,
-
-	.file_buf_addr = 0,
-	.file_buf_offset = 0,
+gif_palette_t i_palette = {
+	.colors = GIF_INTERNAL_PALETTE,
+	.size = INTERNAL_PALETTE_SIZE
 };
 
+
+static uint16_t read_num(file_t *file)
+{
+    uint8_t bytes[2];
+
+    storage_file_read(file, bytes, 2);
+    return bytes[0] + (((uint16_t) bytes[1]) << 8);
+}
+
+
 bool is_gif_file(file_t *file) {
+	const uint8_t sigver_size = 8;
+	uint8_t __attribute__((aligned((4)))) buf[sigver_size];
+
 	if (file == NULL)
 		return false;
 	
 	storage_file_set_cursor(file, 0, S_SET);
-	storage_file_read(file, (uint32_t *)file_buf, 8);
-	gif_header_t *f = (gif_header_t *)file_buf;
+	storage_file_read(file, (uint32_t *)buf, sigver_size);
+	gif_header_t *f = (gif_header_t *)buf;
 	
 	if (memcmp(f->sig, "GIF", 3) != 0)
 		return false;
@@ -116,54 +94,318 @@ bool is_gif_file(file_t *file) {
 }
 
 
-void print_gpalette() {
-	
-	for (uint16_t i = 0; i < gif.g_palette_size; i ++) {
-		printf(
-			"[%02X%02X%02X]\n", 
-			gif.g_palette[i][0], 
-			gif.g_palette[i][1], 
-			gif.g_palette[i][2]
-			);
-	}
-}
+gif_err_t gif_open(file_t *file, gif_t *gif) {
+    uint8_t *bgcolor;
+	gif_err_t ret = G_OK;
+	gif_header_t hgif;
 
-
-gif_error_t gif_open(file_t *file) {
-	gif_error_t ret = G_OK;
 	if (file == NULL)
 		return G_NOT_GIF_FILE;
 
-	gif.file_buf_addr = 0;
-	storage_file_set_cursor(file, gif.file_buf_addr, S_SET);
-	storage_file_read(file, (uint32_t *)file_buf, FILE_BUF_SIZE);
-
-	gif_header_t *hgif = (gif_header_t *)file_buf;
-	gif.scr_width = hgif->scr.width;
-	gif.scr_height = hgif->scr.height;
+	gif->fd = file;
+	storage_file_set_cursor(file, 0, S_SET);
+	storage_file_read(file, (uint8_t *)&hgif, sizeof(gif_header_t));
 	
-	if (hgif->scr.palette_flags.bits.have_global) {
-		gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
-		gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
-		gif.bg_color_ind = hgif->scr.bg_color_ind;
-		memcpy(
-			gif.g_palette, 
-			&file_buf[sizeof(gif_header_t)], 
-			gif.g_palette_size * DISP_LEDS_NUM
-		);
-		memcpy(gif.bg_color, gif.g_palette[gif.bg_color_ind], DISP_LEDS_NUM);
-		gif.file_buf_offset = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
+	gif->width = hgif.scr.width;
+	gif->height = hgif.scr.height;
+	
+    if (hgif.scr.palette_flags.bits.have_global) {
+		gif->gct.size = 1 << (hgif.scr.palette_flags.bits.size + 1);
+		gif->depth = hgif.scr.palette_flags.bits.color_resolution;
+		gif->bgindex = hgif.scr.bg_color_ind;
+		storage_file_read(file, gif->gct.colors, gif->gct.size * DISP_LEDS_NUM);
+		gif->palette = &gif->gct;
+		if (gif->bgindex)
+        	memset(gif->frame, gif->bgindex, gif->width * gif->height);
+		bgcolor = &gif->palette->colors[gif->bgindex * DISP_LEDS_NUM];
 	} else {
-		gif.file_buf_offset = sizeof(gif_header_t);
-		gif.g_palette_size = 0;
+		gif->palette = &i_palette;
+		gif->gct.size = 0;
+		bgcolor = &gif->palette->colors[0];
 	}
 
-	return ret;
+	if (bgcolor[0] || bgcolor[1] || bgcolor [2])
+		for (int i = 0; i < gif->width * gif->height; i++)
+			memcpy(&gif->frame[i * DISP_LEDS_NUM], bgcolor, DISP_LEDS_NUM);
+    
+    gif->anim_start = storage_file_set_cursor(file, 0, S_CUR);
+
+    return ret;
 }
 
-gif_error_t gif_get_frame() {
-	
+
+static void discard_sub_blocks(gif_t *gif) {
+    uint8_t size;
+
+    do {
+		storage_file_read(gif->fd, &size, 1);
+        storage_file_set_cursor(gif->fd, size, S_CUR);
+    } while (size);
 }
+
+
+static void read_plain_text_ext(gif_t *gif) {
+    if (gif->plain_text) {
+        uint16_t tx, ty, tw, th;
+        uint8_t cw, ch, fg, bg;
+        uint32_t sub_block;
+        storage_file_set_cursor(gif->fd, 1, S_CUR);
+        tx = read_num(gif->fd);
+        ty = read_num(gif->fd);
+        tw = read_num(gif->fd);
+        th = read_num(gif->fd);
+        storage_file_read(gif->fd, &cw, 1);
+        storage_file_read(gif->fd, &ch, 1);
+        storage_file_read(gif->fd, &fg, 1);
+        storage_file_read(gif->fd, &bg, 1);
+        sub_block = storage_file_set_cursor(gif->fd, 0, S_CUR);
+        gif->plain_text(gif, tx, ty, tw, th, cw, ch, fg, bg);
+        storage_file_set_cursor(gif->fd, sub_block, S_SET);
+    } else {
+        storage_file_set_cursor(gif->fd, 13, S_CUR);
+    }
+    discard_sub_blocks(gif);
+}
+
+
+static void read_graphic_control_ext(gif_t *gif) {
+    uint8_t rdit;
+
+    storage_file_set_cursor(gif->fd, 1, S_CUR);
+    storage_file_read(gif->fd, &rdit, 1);
+    gif->gce.disposal = (rdit >> 2) & 3;
+    gif->gce.input = rdit & 2;
+    gif->gce.transparency = rdit & 1;
+    gif->gce.delay = read_num(gif->fd);
+    storage_file_read(gif->fd, &gif->gce.tindex, 1);
+    storage_file_set_cursor(gif->fd, 1, S_CUR);
+}
+
+
+static void read_comment_ext(gif_t *gif) {
+    if (gif->comment) {
+        uint32_t sub_block = storage_file_set_cursor(gif->fd, 0, S_CUR);
+        gif->comment(gif);
+        storage_file_set_cursor(gif->fd, sub_block, S_SET);
+    }
+    discard_sub_blocks(gif);
+}
+
+
+static void read_application_ext(gif_t *gif)
+{
+    char app_id[8];
+    char app_auth_code[3];
+
+    storage_file_set_cursor(gif->fd, 1, S_CUR);
+    storage_file_read(gif->fd, app_id, 8);
+    storage_file_read(gif->fd, app_auth_code, 3);
+    if (!strncmp(app_id, "NETSCAPE", sizeof(app_id))) {
+        storage_file_set_cursor(gif->fd, 2, S_CUR);
+        gif->loop_count = read_num(gif->fd);
+        storage_file_set_cursor(gif->fd, 1, S_CUR);
+    } else if (gif->application) {
+        uint32_t sub_block = storage_file_set_cursor(gif->fd, 0, S_CUR);
+        gif->application(gif, app_id, app_auth_code);
+        storage_file_set_cursor(gif->fd, sub_block, S_SET);
+        discard_sub_blocks(gif);
+    } else {
+        discard_sub_blocks(gif);
+    }
+}
+
+
+static void read_ext(gif_t *gif) {
+    uint8_t label;
+
+    storage_file_read(gif->fd, &label, 1);
+    switch (label) {
+    case 0x01:
+        read_plain_text_ext(gif);
+        break;
+    case 0xF9:
+        read_graphic_control_ext(gif);
+        break;
+    case 0xFE:
+        read_comment_ext(gif);
+        break;
+    case 0xFF:
+        read_application_ext(gif);
+        break;
+    default:
+        break;
+    }
+}
+
+
+static int read_image_data(gif_t *gif, int interlace) {
+    
+    
+    int start = storage_file_set_cursor(gif->fd, 0, S_CUR);
+    discard_sub_blocks(gif);
+    int end = storage_file_set_cursor(gif->fd, 0, S_CUR);
+    storage_file_set_cursor(gif->fd, start, S_SET);
+    uint32_t frame_size = gif->fw * gif->fh * ;
+
+        if (interlace)
+            y = interlaced_line_index((int) gif->fh, y);
+
+    storage_file_set_cursor(gif->fd, end, S_SET);
+    return 0;
+}
+
+
+static int read_image(gif_t *gif) {
+    image_descriptor_t img_d;
+
+	storage_file_read(gif->fd, (uint8_t *)&img_d, sizeof(image_descriptor_t));
+
+    gif->fx = img_d.x_offset;
+    gif->fy = img_d.y_offset;
+    
+    if (gif->fx >= gif->width || gif->fy >= gif->height)
+        return -1;
+    
+    gif->fw = img_d.width;
+    gif->fh = img_d.heigth;
+    
+    gif->fw = MIN(gif->fw, gif->width - gif->fx);
+    gif->fh = MIN(gif->fh, gif->height - gif->fy);
+
+    if (img_d.palette_flags.bits.have_local) {
+        gif->lct.size = 1 << (img_d.palette_flags.bits.size + 1);
+        storage_file_read(gif->fd, gif->lct.colors, DISP_LEDS_NUM * gif->lct.size);
+        gif->palette = &gif->lct;
+    } else if (gif->gct.size != 0) {
+        gif->palette = &gif->gct;
+	} else {
+		gif->palette = &i_palette;
+	}
+	
+    return 0;
+}
+
+
+static void render_frame_rect(gif_t *gif, uint8_t *buffer) {
+    uint8_t lzw;
+
+    storage_file_read(gif->fd, &lzw, 1);
+
+    int i, j, k;
+    uint8_t index, *color;
+    i = gif->fy * gif->width + gif->fx;
+    for (j = 0; j < gif->fh; j++) {
+        for (k = 0; k < gif->fw; k++) {
+            index = gif->frame[(gif->fy + j) * gif->width + gif->fx + k];
+            color = &gif->palette->colors[index * DISP_LEDS_NUM];
+            if (!gif->gce.transparency || index != gif->gce.tindex)
+                memcpy(
+					&buffer[(i + k) * DISP_LEDS_NUM], 
+					color, 
+					DISP_LEDS_NUM
+				);
+        }
+        i += gif->width;
+    }
+}
+
+
+static void dispose(gif_t *gif) {
+    int i, j, k;
+    uint8_t *bgcolor;
+    switch (gif->gce.disposal) {
+    case 2: 
+        bgcolor = &gif->palette->colors[gif->bgindex * DISP_LEDS_NUM];
+        i = gif->fy * gif->width + gif->fx;
+        for (j = 0; j < gif->fh; j++) {
+            for (k = 0; k < gif->fw; k++)
+                memcpy(
+					&gif->canvas[(i + k) * DISP_LEDS_NUM], 
+					bgcolor, 
+					DISP_LEDS_NUM
+				);
+            i += gif->width;
+        }
+        break;
+    case 3: 
+        break;
+    default:
+        render_frame_rect(gif, gif->canvas);
+    }
+}
+
+
+int gif_get_frame(gif_t *gif) {
+    char sep;
+
+    dispose(gif);
+    storage_file_read(gif->fd, &sep, 1);
+    while (sep != ',') {
+        if (sep == ';')
+            return 0;
+        if (sep == '!')
+            read_ext(gif);
+        else return -1;
+        storage_file_read(gif->fd, &sep, 1);
+    }
+    if (read_image(gif) == -1)
+        return -1;
+    return 1;
+}
+
+
+void gif_render_frame(gif_t *gif, uint8_t *buffer) {
+    memcpy(buffer, gif->canvas, gif->width * gif->height * DISP_LEDS_NUM);
+    render_frame_rect(gif, buffer);
+}
+
+
+int gif_is_bgcolor(gif_t *gif, uint8_t color[DISP_LEDS_NUM]) {
+    return !memcmp(
+		&gif->palette->colors[gif->bgindex * DISP_LEDS_NUM], 
+		color, 
+		DISP_LEDS_NUM
+	);
+}
+
+
+void gif_rewind(gif_t *gif) {
+    storage_file_set_cursor(gif->fd, gif->anim_start, S_SET);
+}
+
+
+// gif_error_t gif_open(file_t *file) {
+// 	gif_error_t ret = G_OK;
+// 	if (file == NULL)
+// 		return G_NOT_GIF_FILE;
+
+// 	gif.file_buf_addr = 0;
+// 	storage_file_set_cursor(file, gif.file_buf_addr, S_SET);
+// 	storage_file_read(file, (uint32_t *)file_buf, FILE_BUF_SIZE);
+
+// 	gif_header_t *hgif = (gif_header_t *)file_buf;
+// 	gif.scr_width = hgif->scr.width;
+// 	gif.scr_height = hgif->scr.height;
+	
+// 	if (hgif->scr.palette_flags.bits.have_global) {
+// 		gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
+// 		gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
+// 		gif.bg_color_ind = hgif->scr.bg_color_ind;
+// 		memcpy(
+// 			gif.g_palette, 
+// 			&file_buf[sizeof(gif_header_t)], 
+// 			gif.g_palette_size * DISP_LEDS_NUM
+// 		);
+// 		memcpy(gif.bg_color, gif.g_palette[gif.bg_color_ind], DISP_LEDS_NUM);
+// 		gif.file_buf_offset = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
+// 	} else {
+// 		gif.file_buf_offset = sizeof(gif_header_t);
+// 		gif.g_palette_size = 0;
+// 	}
+
+// 	return ret;
+// }
+
 
 void *console_create_display(int width, int height) {
 	ansigraphic_image_RGB_t *screen = 
