@@ -47,13 +47,13 @@ typedef struct gif_t {
     void (*application)(struct gif_t *gif, char id[8], char auth[3]);
     uint16_t fx, fy, fw, fh;
     uint8_t bgindex;
-    uint8_t frame[DISP_COLS_NUM][DISP_ROWS_NUM];
+    uint8_t frame[DISP_ROWS_NUM][DISP_COLS_NUM];
 } gif_t;
 
 bool is_gif_file(file_t *file);
 gif_err_t gif_open(file_t *file, gif_t *gif);
 int gif_get_frame(gif_t *gif);
-void gif_render_frame(gif_t *gif, uint8_t *buffer);
+void gif_decode_n_render(gif_t *gif, uint8_t *buffer);
 int gif_is_bgcolor(gif_t *gif, uint8_t color[DISP_LEDS_NUM]);
 void gif_rewind(gif_t *gif);
 

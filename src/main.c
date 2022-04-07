@@ -89,11 +89,23 @@ bool gif_test(uint16_t id) {
         printf("Not a GIF file\n");
         return false;
     }
-    gif_t animation;
+    gif_t animation = {0};
     ret_g = gif_open(&file, &animation);
     if (ret_g != G_OK) {
         printf("gif_open returned %d", ret_g);
         return false;
+    }
+    char *buffer = malloc(animation.width * animation.height * 3);
+    // void *display = console_create_display(animation.width, animation.height);
+    for (unsigned looped = 1;; looped++) {
+        while (gif_get_frame(&animation) == 1) {
+            gif_decode_n_render(&animation, buffer);
+            // console_display_image(display, buffer);
+            // Sleep(animation.gce.delay * 10);
+        }
+        if (looped == animation.loop_count)
+            break;
+        gif_rewind(&animation);
     }
     return true;
 }
@@ -150,12 +162,12 @@ test_fail:
 void gifdec_teset(const char *filename) {
     gd_GIF *gif = gd_open_gif(filename);
     char *buffer = malloc(gif->width * gif->height * 3);
-    void *display = console_create_display(gif->width, gif->height);
+    //void *display = console_create_display(gif->width, gif->height);
     for (unsigned looped = 1;; looped++) {
         while (gd_get_frame(gif)) {
             gd_render_frame(gif, buffer);
-            console_display_image(display, buffer);
-            Sleep(gif->gce.delay * 10);
+            //console_display_image(display, buffer);
+            //Sleep(gif->gce.delay * 10);
         }
         if (looped == gif->loop_count)
             break;
