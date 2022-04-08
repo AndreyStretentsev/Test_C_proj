@@ -18,30 +18,30 @@ bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chun
     f_err_t ret = FILE_OK;
     uint8_t __attribute__((aligned(4))) fbuf[chunk_size];
 
-    printf("Open %s\n", filename);
+    LOGI("Open %s", filename);
     fp = fopen(filename, "rb");
     if (fp == NULL) {
-        printf("Can't open a file\n");
+        LOGE("Can't open a file");
         return false;
     }
     struct stat stbuf;
     if (stat(filename, &stbuf) == -1) {
-        printf("Can't access to the file\n");
+        LOGE("Can't access to the file");
         fclose(fp);
         return false;
     }
     uint32_t file_size = stbuf.st_size;
-    printf("File size = %ld\n", file_size);
-    printf("Creating the new file %ld in storage\n", id);
+    LOGI("File size = %ld", file_size);
+    LOGI("Creating the new file %ld in storage", id);
     ret = storage_file_create(&file, id, (uint32_t)stbuf.st_size);
     if (ret != FILE_OK) {
-        printf("File not created. Reason = %d\n", ret);
+        LOGE("File not created. Reason = %d", ret);
         fclose(fp);
         return false;
     }
     while (file_size) {
         size_t r = fread(fbuf, sizeof(uint8_t), chunk_size, fp);
-        printf("read %d, w_res %d\n", r, storage_file_write(&file, (uint32_t *)fbuf, r));
+        LOGE("read %d, w_res %d", r, storage_file_write(&file, (uint32_t *)fbuf, r));
         file_size -= r;
     }
     fclose(fp);
@@ -53,23 +53,23 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
     FILE *fp = NULL;
     f_err_t ret = FILE_OK;
     uint8_t __attribute__((aligned(4))) fbuf[chunk_size];
-    printf("Creating %s\n", filename);
+    LOGI("Creating %s", filename);
     fp = fopen(filename, "wb");
     if (fp == NULL) {
-        printf("Can't create a file\n");
+        LOGE("Can't create a file");
         return false;
     }
     ret = storage_get_file_by_id(&file, id);
     if (ret != FILE_OK) {
-        printf("File not found. Reason = %d\n", ret);
+        LOGE("File not found. Reason = %d", ret);
         fclose(fp);
         return false;
     }
-    printf("Copying file %ld contents\n", id);
+    LOGI("Copying file %ld contents", id);
     int r;
     do {
         r = storage_file_read(&file, (uint32_t *)fbuf, chunk_size);
-        printf("read %d\n", r);
+        LOGI("read %d", r);
         fwrite(fbuf, sizeof(uint8_t), r, fp);
     } while (r != 0);
     fclose(fp);
@@ -82,17 +82,17 @@ bool gif_test(uint16_t id) {
     gif_err_t ret_g = G_OK;
     ret_f = storage_get_file_by_id(&file, id);
     if (ret_f != FILE_OK) {
-        printf("File not found. Reason = %d\n", ret_f);
+        LOGE("File not found. Reason = %d", ret_f);
         return false;
     }
     if (!is_gif_file(&file)) {
-        printf("Not a GIF file\n");
+        LOGE("Not a GIF file");
         return false;
     }
     gif_t animation = {0};
     ret_g = gif_open(&file, &animation);
     if (ret_g != G_OK) {
-        printf("gif_open returned %d", ret_g);
+        LOGE("gif_open returned %d", ret_g);
         return false;
     }
     char *buffer = malloc(animation.width * animation.height * 3);
@@ -113,15 +113,15 @@ bool gif_test(uint16_t id) {
 bool file_delete_test(uint16_t id) {
     file_t file;
     f_err_t ret = FILE_OK;
-    printf("Deleting file %ld in storage\n", id);
+    LOGI("Deleting file %ld in storage", id);
     ret = storage_get_file_by_id(&file, id);
     if (ret != FILE_OK) {
-        printf("File not found. Reason = %d\n", ret);
+        LOGE("File not found. Reason = %d", ret);
         return false;
     }
     ret = storage_file_delete(&file);
     if (ret != FILE_OK) {
-        printf("File not deleted. Reason = %d\n", ret);
+        LOGE("File not deleted. Reason = %d", ret);
         return false;
     }
     return true;
@@ -152,22 +152,22 @@ bool run_tests() {
     if (!gif_test(file1_id))
         goto test_fail;
 
-    printf("All test results are successfull!\n");
+    LOGI("All test results are successfull!");
     return true;
 test_fail:
-    printf("Tests failed!\n");
+    LOGE("Tests failed!");
     return false;
 }
 
 void gifdec_teset(const char *filename) {
     gd_GIF *gif = gd_open_gif(filename);
     char *buffer = malloc(gif->width * gif->height * 3);
-    //void *display = console_create_display(gif->width, gif->height);
+    void *display = console_create_display(gif->width, gif->height);
     for (unsigned looped = 1;; looped++) {
         while (gd_get_frame(gif)) {
             gd_render_frame(gif, buffer);
-            //console_display_image(display, buffer);
-            //Sleep(gif->gce.delay * 10);
+            console_display_image(display, buffer);
+            Sleep(gif->gce.delay * 10);
         }
         if (looped == gif->loop_count)
             break;
@@ -182,7 +182,7 @@ int main() {
     storage_init();
     if (!run_tests())
         exit(1);
-    
+    LOGD("");
     // gifdec_teset("bb.gif");
     exit(0);
 }

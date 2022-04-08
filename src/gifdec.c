@@ -362,12 +362,10 @@ read_image_data(gd_GIF *gif, int interlace)
     frm_size = gif->fw*gif->fh;
     while (frm_off < frm_size) {
         if (key == clear) {
-            printf("key clear\n");
             key_size = init_key_size;
             table->nentries = (1 << (key_size - 1)) + 2;
             table_is_full = 0;
         } else if (!table_is_full) {
-            printf("table is not full\n");
             ret = add_entry(&table, str_len + 1, key, entry.suffix);
             if (ret == -1) {
                 free(table);
@@ -382,8 +380,6 @@ read_image_data(gd_GIF *gif, int interlace)
         if (key == clear) continue;
         if (key == stop || key == 0x1000) break;
         if (ret == 1) key_size++;
-        printf("key_size = %d\n", key_size);
-        printf("key = 0x%02X(%d)\n", key, key);
         entry = table->entries[key];
         str_len = entry.length;
         for (i = 0; i < str_len; i++) {
@@ -392,7 +388,6 @@ read_image_data(gd_GIF *gif, int interlace)
             y = p / gif->fw;
             if (interlace)
                 y = interlaced_line_index((int) gif->fh, y);
-            printf("y = %d\tx = %d\tsuf = %d\n", y, x, entry.suffix);
             gif->frame[(gif->fy + y) * gif->width + gif->fx + x] = entry.suffix;
             if (entry.prefix == 0xFFF)
                 break;

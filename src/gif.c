@@ -95,7 +95,7 @@ bool is_gif_file(file_t *file) {
 
 
 gif_err_t gif_open(file_t *file, gif_t *gif) {
-    printf("Gif open\n");
+    LOGI("Gif open");
     uint8_t *bgcolor;
 	gif_err_t ret = G_OK;
 	gif_header_t hgif;
@@ -110,8 +110,8 @@ gif_err_t gif_open(file_t *file, gif_t *gif) {
 	gif->width = hgif.scr.width;
 	gif->height = hgif.scr.height;
 
-    printf("screen width = %d\n", gif->width);
-    printf("screen height = %d\n", gif->height);
+    LOGI("screen width = %d", gif->width);
+    LOGI("screen height = %d", gif->height);
 	
     if (hgif.scr.palette_flags.bits.have_global) {
 		gif->gct.size = 1 << (hgif.scr.palette_flags.bits.size + 1);
@@ -122,12 +122,12 @@ gif_err_t gif_open(file_t *file, gif_t *gif) {
 		// if (gif->bgindex)
         // 	memset(gif->frame, gif->bgindex, gif->width * gif->height);
 		bgcolor = &gif->palette->colors[gif->bgindex * DISP_LEDS_NUM];
-        printf("have global table\n");
-        printf("global table size = %d\n", gif->gct.size);
-        printf("color resolution = %d\n", gif->depth);
-        printf("bg color index = %d\n", gif->bgindex);
+        LOGI("have global table");
+        LOGI("global table size = %d", gif->gct.size);
+        LOGI("color resolution = %d", gif->depth);
+        LOGI("bg color index = %d", gif->bgindex);
 	} else {
-        printf("have no global table\n");
+        LOGI("have no global table");
 		gif->palette = &i_palette;
 		gif->gct.size = 0;
 		bgcolor = &gif->palette->colors[0];
@@ -137,10 +137,10 @@ gif_err_t gif_open(file_t *file, gif_t *gif) {
 		for (int i = 0; i < gif->width * gif->height; i++)
 			memcpy(&gif->frame[i * DISP_LEDS_NUM], bgcolor, DISP_LEDS_NUM);
 
-    printf("bg color = [%02X%02X%02X]\n", bgcolor[0], bgcolor[1], bgcolor[2]);
+    LOGI("bg color = [%02X%02X%02X]", bgcolor[0], bgcolor[1], bgcolor[2]);
     
     gif->anim_start = storage_file_set_cursor(file, 0, S_CUR);
-    printf("animation start addr = 0x%08X(%d)\n", gif->anim_start, gif->anim_start);
+    LOGI("animation start addr = 0x%08X(%d)", gif->anim_start, gif->anim_start);
     
     return ret;
 }
@@ -148,7 +148,7 @@ gif_err_t gif_open(file_t *file, gif_t *gif) {
 
 static void discard_sub_blocks(gif_t *gif) {
     uint8_t size;
-    printf("Discard subblocks\n");
+    LOGI("Discard subblocks");
     do {
 		storage_file_read(gif->fd, &size, 1);
         storage_file_set_cursor(gif->fd, size, S_CUR);
@@ -157,7 +157,7 @@ static void discard_sub_blocks(gif_t *gif) {
 
 
 static void read_plain_text_ext(gif_t *gif) {
-    printf("Read plain text\n");
+    LOGI("Read plain text");
     if (gif->plain_text) {
         uint16_t tx, ty, tw, th;
         uint8_t cw, ch, fg, bg;
@@ -183,7 +183,7 @@ static void read_plain_text_ext(gif_t *gif) {
 
 static void read_graphic_control_ext(gif_t *gif) {
     uint8_t rdit;
-    printf("Read graphic extention\n");
+    LOGI("Read graphic extention");
     storage_file_set_cursor(gif->fd, 1, S_CUR);
     storage_file_read(gif->fd, &rdit, 1);
     gif->gce.disposal = (rdit >> 2) & 3;
@@ -192,17 +192,17 @@ static void read_graphic_control_ext(gif_t *gif) {
     gif->gce.delay = read_num(gif->fd);
     storage_file_read(gif->fd, &gif->gce.tindex, 1);
     storage_file_set_cursor(gif->fd, 1, S_CUR);
-    printf("disposal = %d\n", gif->gce.disposal);
-    printf("input = %d\n", gif->gce.input);
-    printf("transparency = %d\n", gif->gce.transparency);
-    printf("delay = %d ms\n", gif->gce.delay * 10);
+    LOGI("disposal = %d", gif->gce.disposal);
+    LOGI("input = %d", gif->gce.input);
+    LOGI("transparency = %d", gif->gce.transparency);
+    LOGI("delay = %d ms", gif->gce.delay * 10);
 }
 
 
 static void read_comment_ext(gif_t *gif) {
-    printf("Read comment\n");
+    LOGI("Read comment");
     if (gif->comment) {
-        printf("have comment cb\n");
+        LOGI("have comment cb");
         uint32_t sub_block = storage_file_set_cursor(gif->fd, 0, S_CUR);
         gif->comment(gif);
         storage_file_set_cursor(gif->fd, sub_block, S_SET);
@@ -215,24 +215,24 @@ static void read_application_ext(gif_t *gif)
 {
     char app_id[8];
     char app_auth_code[3];
-    printf("Read application\n");
+    LOGI("Read application");
     storage_file_set_cursor(gif->fd, 1, S_CUR);
     storage_file_read(gif->fd, app_id, 8);
     storage_file_read(gif->fd, app_auth_code, 3);
     if (!strncmp(app_id, "NETSCAPE", sizeof(app_id))) {
-        printf("NETSCAPE\n");
+        LOGI("NETSCAPE");
         storage_file_set_cursor(gif->fd, 2, S_CUR);
         gif->loop_count = read_num(gif->fd);
-        printf("loop count = %d\n", gif->loop_count);
+        LOGI("loop count = %d", gif->loop_count);
         storage_file_set_cursor(gif->fd, 1, S_CUR);
     } else if (gif->application) {
-        printf("have application cb\n");
+        LOGI("have application cb");
         uint32_t sub_block = storage_file_set_cursor(gif->fd, 0, S_CUR);
         gif->application(gif, app_id, app_auth_code);
         storage_file_set_cursor(gif->fd, sub_block, S_SET);
         discard_sub_blocks(gif);
     } else {
-        printf("have no application cb\n");
+        LOGI("have no application cb");
         discard_sub_blocks(gif);
     }
 }
@@ -240,7 +240,7 @@ static void read_application_ext(gif_t *gif)
 
 static void read_ext(gif_t *gif) {
     uint8_t label;
-    printf("Read extention\n");
+    LOGI("Read extention");
     storage_file_read(gif->fd, &label, 1);
     switch (label) {
     case 0x01:
@@ -263,14 +263,14 @@ static void read_ext(gif_t *gif) {
 
 static int read_image(gif_t *gif) {
     image_descriptor_t img_d;
-    printf("Read image\n");
+    LOGI("Read image");
 	storage_file_read(gif->fd, (uint8_t *)&img_d, sizeof(image_descriptor_t));
 
     gif->fx = img_d.x_offset;
     gif->fy = img_d.y_offset;
 
-    printf("offset x = %d\n", gif->fx);
-    printf("offset y = %d\n", gif->fy);
+    LOGI("offset x = %d", gif->fx);
+    LOGI("offset y = %d", gif->fy);
     
     if (gif->fx >= gif->width || gif->fy >= gif->height)
         return -1;
@@ -281,20 +281,20 @@ static int read_image(gif_t *gif) {
     gif->fw = MIN(gif->fw, gif->width - gif->fx);
     gif->fh = MIN(gif->fh, gif->height - gif->fy);
 
-    printf("width = %d\n", gif->fw);
-    printf("height = %d\n", gif->fh);
+    LOGI("width = %d", gif->fw);
+    LOGI("height = %d", gif->fh);
 
     if (img_d.palette_flags.bits.have_local) {
-        printf("have local table\n");
+        LOGI("have local table");
         gif->lct.size = 1 << (img_d.palette_flags.bits.size + 1);
-        printf("local table size = %d\n", gif->lct.size);
+        LOGI("local table size = %d", gif->lct.size);
         storage_file_read(gif->fd, gif->lct.colors, DISP_LEDS_NUM * gif->lct.size);
         gif->palette = &gif->lct;
     } else if (gif->gct.size != 0) {
-        printf("use global palettte\n");
+        LOGI("use global palettte");
         gif->palette = &gif->gct;
 	} else {
-        printf("use internal palette\n");
+        LOGI("use internal palette");
 		gif->palette = &i_palette;
 	}
 	
@@ -336,7 +336,7 @@ static uint16_t get_key(
 
 
 void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
-    printf("Decode and render\n");
+    LOGI("Decode and render");
     uint8_t lzw, byte;
     uint8_t shift = 0;
     uint8_t sub_len = 0;
@@ -344,11 +344,11 @@ void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
     uint8_t *color;
     uint16_t x, y;
     storage_file_read(gif->fd, &lzw, 1);
-    printf("LZW = %d\n", lzw);
+    LOGI("LZW = %d", lzw);
     int start = storage_file_set_cursor(gif->fd, 0, S_CUR);
     discard_sub_blocks(gif);
     int end = storage_file_set_cursor(gif->fd, 0, S_CUR);
-    printf("frame start addr = %08X(%d)\nframe end addr = %08X(%d)\n", 
+    LOGI("frame start addr = %08X(%d)\nframe end addr = %08X(%d)", 
         start, start,
         end, end
     );
@@ -364,7 +364,7 @@ void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
         if (key == stop || key == 0x1000) break;
         x = frm_off % gif->fw;
         y = frm_off / gif->fw;
-        printf("y = %d\tx = %d\tkey = 0x%02X(%d)\n", y, x, key, key);
+        LOGI("y = %d\tx = %d\tkey = 0x%02X(%d)", y, x, key, key);
         color = &gif->palette->colors[key * DISP_LEDS_NUM];
         if (!gif->gce.transparency || key != gif->gce.tindex)
             memcpy(
@@ -376,19 +376,19 @@ void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
     }
     if (key == stop)
         storage_file_read(gif->fd, &sub_len, 1);
-    printf("set cursor to the end of the frame\n");
+    LOGI("set cursor to the end of the frame");
     storage_file_set_cursor(gif->fd, end, S_SET);
 }
 
 
 static void decode_frame(gif_t *gif) {
-    printf("Decode frame\n");
+    LOGI("Decode frame");
     uint8_t lzw, byte;
     uint8_t shift = 0;
     uint8_t sub_len = 0;
     uint16_t key, clear, stop;
     storage_file_read(gif->fd, &lzw, 1);
-    printf("LZW = %d\n", lzw);
+    LOGI("LZW = %d", lzw);
     int start = storage_file_set_cursor(gif->fd, 0, S_CUR);
     discard_sub_blocks(gif);
     int end = storage_file_set_cursor(gif->fd, 0, S_CUR);
@@ -401,7 +401,7 @@ static void decode_frame(gif_t *gif) {
             key = get_key(gif, lzw, &sub_len, &shift, &byte);
             if (key == clear) continue;
             if (key == stop || key == 0x1000) break;
-            printf("y = %d\tx = %d\tkey = %d\n", y, x, key);
+            LOGI("y = %d\tx = %d\tkey = %d", y, x, key);
             gif->frame[y][x] = key;
         }
     }
@@ -410,7 +410,7 @@ static void decode_frame(gif_t *gif) {
 
 
 static void render_frame_rect(gif_t *gif, uint8_t *buffer) {
-    printf("Render frame rect\n");
+    LOGI("Render frame rect");
     int i, j, k;
     uint8_t index, *color;
     i = gif->fy * gif->width + gif->fx;
@@ -427,12 +427,12 @@ static void render_frame_rect(gif_t *gif, uint8_t *buffer) {
 
 
 static void dispose(gif_t *gif) {
-    printf("Dispose\n");
+    LOGI("Dispose");
     int i, j, k;
     uint8_t *bgcolor;
     switch (gif->gce.disposal) {
     case 2: 
-        printf("fill with bg color\n");
+        LOGI("fill with bg color");
         i = gif->fy * gif->width + gif->fx;
         for (j = 0; j < gif->fh; j++) {
             for (k = 0; k < gif->fw; k++)
@@ -441,10 +441,10 @@ static void dispose(gif_t *gif) {
         }
         break;
     case 3: 
-        printf("nothing\n");
+        LOGI("nothing");
         break;
     default:
-        printf("render frame\n");
+        LOGI("render frame");
         // render_frame_rect(gif, gif->frame);
     }
 }
@@ -452,10 +452,10 @@ static void dispose(gif_t *gif) {
 
 int gif_get_frame(gif_t *gif) {
     char sep;
-    printf("Get frame\n");
+    LOGI("Get frame");
     dispose(gif);
     storage_file_read(gif->fd, &sep, 1);
-    printf("next byte = 0x%02X(%c)\n", sep, sep);
+    LOGI("next byte = 0x%02X('%c')", sep, sep);
     while (sep != ',') {
         if (sep == ';')
             return 0;
@@ -463,7 +463,7 @@ int gif_get_frame(gif_t *gif) {
             read_ext(gif);
         else return -1;
         storage_file_read(gif->fd, &sep, 1);
-        printf("next byte = 0x%02X(%c)\n", sep, sep);
+        LOGI("next byte = 0x%02X('%c')", sep, sep);
     }
     if (read_image(gif) == -1)
         return -1;
@@ -481,7 +481,7 @@ int gif_is_bgcolor(gif_t *gif, uint8_t color[DISP_LEDS_NUM]) {
 
 
 void gif_rewind(gif_t *gif) {
-    printf("Rewind\n");
+    LOGI("Rewind");
     storage_file_set_cursor(gif->fd, gif->anim_start, S_SET);
 }
 

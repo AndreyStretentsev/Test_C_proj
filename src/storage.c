@@ -156,7 +156,7 @@ f_err_t storage_get_file_by_id(file_t *file, uint16_t id) {
 
 f_err_t storage_file_create(file_t *file, uint16_t id, uint32_t size) {
 	uint32_t file_size_in_pages = SIZE_TO_PAGES_W_HEADERS(size);
-	printf("file_size_in_pages = %d\n", file_size_in_pages);
+	LOGD("file_size_in_pages = %d", file_size_in_pages);
 	if (file_size_in_pages > f_table.free_pages)
 		return FILE_NOT_ENOUGH_SPACE;
 	
@@ -219,7 +219,7 @@ int storage_file_write(file_t *file, uint32_t *data, int len) {
 	if (data_offset + (len & FLASH_PAGE_SIZE_Msk) >= FMC_FLASH_PAGE_SIZE)
 		end_writing_addr += sizeof(file_header_t);
 	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
-	printf("end_writing_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
+	LOGD("end_writing_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)", 
 		end_writing_addr, end_writing_addr,
 		end_of_file_addr, end_of_file_addr
 	);
@@ -288,7 +288,7 @@ int storage_file_read(file_t *file, uint8_t *data, int len) {
 	if (data_offset + (len & FLASH_PAGE_SIZE_Msk) >= FMC_FLASH_PAGE_SIZE)
 		end_reading_addr += sizeof(file_header_t);
 	uint32_t end_of_file_addr = SIZE_TO_SIZE_W_HEADERS(file->size) + sizeof(file_header_t);
-	printf("end_reading_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)\n", 
+	LOGD("end_reading_addr = 0x%08X(%d), end_of_file_addr = 0x%08X(%d)", 
 		end_reading_addr, end_reading_addr,
 		end_of_file_addr, end_of_file_addr
 	);
