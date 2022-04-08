@@ -83,6 +83,7 @@ bool is_gif_file(file_t *file) {
 	storage_file_set_cursor(file, 0, S_SET);
 	storage_file_read(file, buf, sigver_size);
 	gif_header_t *f = (gif_header_t *)buf;
+    storage_file_set_cursor(file, 0, S_SET);
 	
 	if (memcmp(f->sig, "GIF", 3) != 0)
 		return false;

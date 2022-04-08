@@ -2,7 +2,7 @@
 #define INTERNAL_PALETTE_H
 
 #define DISP_LEDS_NUM	3
-#define DISP_COLS_NUM	30
+#define DISP_COLS_NUM	32
 #define DISP_ROWS_NUM	10
 
 #define INTERNAL_PALETTE_SIZE	216
