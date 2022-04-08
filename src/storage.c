@@ -119,7 +119,6 @@ void storage_init() {
 
 
 static int storage_get_next_page_index_by_id(uint32_t id, uint8_t from_index) {
-	int page_cnt = 0;
 	int page_index = -1;
 	for (uint8_t page = from_index; page < DATA_FLASH_PAGES_NUM; page++) {
 		if (f_table.page_file_id[page] != id)

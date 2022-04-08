@@ -3,6 +3,7 @@
 #include <windows.h>
 #include "main.h"
 
+#include "flash.h"
 #include "storage.h"
 #include "gif.h"
 #include "gifdec.h"
@@ -41,7 +42,8 @@ bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chun
     }
     while (file_size) {
         size_t r = fread(fbuf, sizeof(uint8_t), chunk_size, fp);
-        LOGI("read %d, w_res %d", r, storage_file_write(&file, (uint32_t *)fbuf, r));
+        int w = storage_file_write(&file, (uint32_t *)fbuf, r);
+        LOGI("read %d, w_res %d", r, w);
         file_size -= r;
     }
     fclose(fp);
@@ -97,16 +99,12 @@ bool gif_test(uint16_t id) {
     }
     char *buffer = malloc(animation.width * animation.height * 3);
     void *display = console_create_display(animation.width, animation.height);
-    for (unsigned looped = 1;; looped++) {
-        while (gif_get_frame(&animation) == 1) {
-            gif_decode_n_render(&animation, buffer);
-            console_display_image(display, buffer);
-            Sleep(animation.gce.delay * 10);
-        }
-        if (looped == animation.loop_count)
-            break;
-        gif_rewind(&animation);
+    while (gif_get_frame(&animation) == 1) {
+        gif_decode_n_render(&animation, buffer);
+        console_display_image(display, buffer);
+        Sleep(animation.gce.delay * 10);
     }
+    gif_rewind(&animation);
     return true;
 }
 
@@ -149,8 +147,8 @@ bool run_tests() {
     if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    // if (!gif_test(file1_id))
-    //     goto test_fail;
+    if (!gif_test(file1_id))
+        goto test_fail;
 
     LOGI("All test results are successfull!");
     return true;
@@ -182,7 +180,6 @@ int main() {
     storage_init();
     if (!run_tests())
         exit(1);
-    LOGD("");
     // gifdec_teset("bb.gif");
     exit(0);
 }

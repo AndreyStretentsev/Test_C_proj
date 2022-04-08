@@ -11,10 +11,10 @@
 
 #define LOGLEVEL_DEBUG      4
 #define LOGLEVEL_INFO       3
-#define LOGLEVEL_WARNING    2
+#define LOGLEVEL_WARN       2
 #define LOGLEVEL_ERROR      1
 #define LOGLEVEL_OFF        0
-#define LOGLEVEL            LOGLEVEL_INFO
+#define LOGLEVEL            LOGLEVEL_WARN
 
 #define LOG_COLOR_BLACK   "30"
 #define LOG_COLOR_RED     "31"
@@ -41,7 +41,7 @@
         if(LOGLEVEL >= LOGLEVEL_INFO) printf(LOG_FORMAT(I, format), ##__VA_ARGS__); \
     } while(0)
 #define LOGW(format,__VA_ARGS__...) do { \
-        if(LOGLEVEL >= LOGLEVEL_WARNING) printf(LOG_FORMAT(W, format), ##__VA_ARGS__); \
+        if(LOGLEVEL >= LOGLEVEL_WARN) printf(LOG_FORMAT(W, format), ##__VA_ARGS__); \
     } while(0)
 #define LOGE(format,__VA_ARGS__...) do { \
         if(LOGLEVEL >= LOGLEVEL_ERROR) printf(LOG_FORMAT(E, format), ##__VA_ARGS__); \
