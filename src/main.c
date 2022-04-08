@@ -52,7 +52,7 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
     file_t file;
     FILE *fp = NULL;
     f_err_t ret = FILE_OK;
-    uint8_t __attribute__((aligned(4))) fbuf[chunk_size];
+    uint8_t fbuf[chunk_size];
     LOGI("Creating %s", filename);
     fp = fopen(filename, "wb");
     if (fp == NULL) {
@@ -68,7 +68,7 @@ bool file_copy_from_storage_test(const char * filename, uint16_t id, uint32_t ch
     LOGI("Copying file %ld contents", id);
     int r;
     do {
-        r = storage_file_read(&file, (uint32_t *)fbuf, chunk_size);
+        r = storage_file_read(&file, fbuf, chunk_size);
         LOGI("read %d", r);
         fwrite(fbuf, sizeof(uint8_t), r, fp);
     } while (r != 0);
@@ -96,12 +96,12 @@ bool gif_test(uint16_t id) {
         return false;
     }
     char *buffer = malloc(animation.width * animation.height * 3);
-    // void *display = console_create_display(animation.width, animation.height);
+    void *display = console_create_display(animation.width, animation.height);
     for (unsigned looped = 1;; looped++) {
         while (gif_get_frame(&animation) == 1) {
             gif_decode_n_render(&animation, buffer);
-            // console_display_image(display, buffer);
-            // Sleep(animation.gce.delay * 10);
+            console_display_image(display, buffer);
+            Sleep(animation.gce.delay * 10);
         }
         if (looped == animation.loop_count)
             break;
