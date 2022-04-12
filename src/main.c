@@ -7,6 +7,7 @@
 #include "storage.h"
 #include "gif.h"
 #include "gifdec.h"
+#include "text.h"
 
 #define BB_GIF_FILE_NAME    "bb.gif"
 #define PUTIN_GIF_FILE_NAME "put.gif"
@@ -105,6 +106,8 @@ bool gif_test(uint16_t id) {
         Sleep(animation.gce.delay * 10);
     }
     gif_rewind(&animation);
+    console_delete_display(display);
+    free(buffer);
     return true;
 }
 
@@ -122,6 +125,59 @@ bool file_delete_test(uint16_t id) {
         LOGE("File not deleted. Reason = %d", ret);
         return false;
     }
+    return true;
+}
+
+extern font_info_t zXSpectrum7_8ptFontInfo;
+
+bool text_test() {
+    uint8_t cc[DISP_LEDS_NUM] = {0xFF, 0x0, 0x0};
+    uint8_t bc[DISP_LEDS_NUM] = {0, 0, 0};
+    char h_str[] = "Horizontal scroll\0";
+    char v_str[] = "Vertical\0";
+    uint8_t *disp_buf = malloc(DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+    memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+    void *display = console_create_display(DISP_COLS_NUM, DISP_ROWS_NUM);
+    int x_max = text_strlen_px(&zXSpectrum7_8ptFontInfo, h_str);
+    LOGI("strlen in px = %d", x_max);
+    for (int x = 0; x < x_max; x++) {
+        if (text_draw_string(
+            disp_buf, 
+            &zXSpectrum7_8ptFontInfo, 
+            h_str, 
+            0, 1, DISP_COLS_NUM, DISP_ROWS_NUM, 
+            x, 0, 
+            cc, bc
+        ) != 0) {
+            console_delete_display(display);
+            LOGE("fail");
+            free(disp_buf);
+            return false;
+        }
+        console_display_image(display, disp_buf);
+        memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+        Sleep(100);
+    }
+    for (int y = 0; y < zXSpectrum7_8ptFontInfo.character_height; y++) {
+        if (text_draw_string(
+            disp_buf, 
+            &zXSpectrum7_8ptFontInfo, 
+            v_str, 
+            0, 1, DISP_COLS_NUM, DISP_ROWS_NUM, 
+            0, y, 
+            cc, bc
+        ) != 0) {
+            console_delete_display(display);
+            LOGE("fail");
+            free(disp_buf);
+            return false;
+        }
+        console_display_image(display, disp_buf);
+        memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+        Sleep(100);
+    }
+    console_delete_display(display);
+    free(disp_buf);
     return true;
 }
 
@@ -147,8 +203,11 @@ bool run_tests() {
     if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    // if (!gif_test(file1_id))
-    //     goto test_fail;
+    if (!gif_test(file1_id))
+        goto test_fail;
+
+    if (!text_test())
+        goto test_fail;
 
     LOGI("All test results are successfull!");
     return true;

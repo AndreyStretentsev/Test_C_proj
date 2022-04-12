@@ -59,5 +59,6 @@ void gif_rewind(gif_t *gif);
 
 void *console_create_display(int width, int height);
 void console_display_image(void *display, uint8_t *raw_image);
+void console_delete_display(void *screen);
 
 #endif // GIF_H

@@ -487,46 +487,24 @@ void gif_rewind(gif_t *gif) {
 }
 
 
-// gif_error_t gif_open(file_t *file) {
-// 	gif_error_t ret = G_OK;
-// 	if (file == NULL)
-// 		return G_NOT_GIF_FILE;
-
-// 	gif.file_buf_addr = 0;
-// 	storage_file_set_cursor(file, gif.file_buf_addr, S_SET);
-// 	storage_file_read(file, (uint32_t *)file_buf, FILE_BUF_SIZE);
-
-// 	gif_header_t *hgif = (gif_header_t *)file_buf;
-// 	gif.scr_width = hgif->scr.width;
-// 	gif.scr_height = hgif->scr.height;
-	
-// 	if (hgif->scr.palette_flags.bits.have_global) {
-// 		gif.g_palette_size = 1 << (hgif->scr.palette_flags.bits.size + 1);
-// 		gif.color_resolution = hgif->scr.palette_flags.bits.color_resolution;
-// 		gif.bg_color_ind = hgif->scr.bg_color_ind;
-// 		memcpy(
-// 			gif.g_palette, 
-// 			&file_buf[sizeof(gif_header_t)], 
-// 			gif.g_palette_size * DISP_LEDS_NUM
-// 		);
-// 		memcpy(gif.bg_color, gif.g_palette[gif.bg_color_ind], DISP_LEDS_NUM);
-// 		gif.file_buf_offset = sizeof(gif_header_t) + gif.g_palette_size * DISP_LEDS_NUM;
-// 	} else {
-// 		gif.file_buf_offset = sizeof(gif_header_t);
-// 		gif.g_palette_size = 0;
-// 	}
-
-// 	return ret;
-// }
-
-
 void *console_create_display(int width, int height) {
+#if (LOGLEVEL == LOGLEVEL_OFF)
 	ansigraphic_image_RGB_t *screen = 
 	ansigraphic_newImage_RGB(width * 2, height);
 	return screen;
+#else
+    return NULL;
+#endif
+}
+
+void console_delete_display(void *screen) {
+#if (LOGLEVEL == LOGLEVEL_OFF)
+    ansigraphic_deleteImage_RGB(screen);
+#endif
 }
 
 void console_display_image(void *display, uint8_t *raw_image) {
+#if (LOGLEVEL == LOGLEVEL_OFF)
 	ansigraphic_image_RGB_t *screen = (ansigraphic_image_RGB_t *)display;
 
 	ansigraphic_ivector2_t xy;
@@ -543,4 +521,5 @@ void console_display_image(void *display, uint8_t *raw_image) {
 		}
 	}
 	ansigraphic_imagePrint_RGB(screen);
+#endif
 }
