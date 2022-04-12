@@ -140,6 +140,24 @@ bool text_test() {
     void *display = console_create_display(DISP_COLS_NUM, DISP_ROWS_NUM);
     int x_max = text_strlen_px(&zXSpectrum7_8ptFontInfo, h_str);
     LOGI("strlen in px = %d", x_max);
+    for (int x = DISP_COLS_NUM; x > 0; x--) {
+        if (text_draw_string(
+            disp_buf, 
+            &zXSpectrum7_8ptFontInfo, 
+            h_str, 
+            x, 1, DISP_COLS_NUM, DISP_ROWS_NUM, 
+            0, 0, 
+            cc, bc
+        ) != 0) {
+            console_delete_display(display);
+            LOGE("fail");
+            free(disp_buf);
+            return false;
+        }
+        console_display_image(display, disp_buf);
+        memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+        Sleep(100);
+    }
     for (int x = 0; x < x_max; x++) {
         if (text_draw_string(
             disp_buf, 
@@ -158,12 +176,30 @@ bool text_test() {
         memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
         Sleep(100);
     }
+    for (int y = DISP_ROWS_NUM; y > 0; y--) {
+        if (text_draw_string(
+            disp_buf, 
+            &zXSpectrum7_8ptFontInfo, 
+            v_str, 
+            0, y, DISP_COLS_NUM, DISP_ROWS_NUM, 
+            0, 0, 
+            cc, bc
+        ) != 0) {
+            console_delete_display(display);
+            LOGE("fail");
+            free(disp_buf);
+            return false;
+        }
+        console_display_image(display, disp_buf);
+        memset(disp_buf, 0, DISP_COLS_NUM * DISP_ROWS_NUM * DISP_LEDS_NUM);
+        Sleep(100);
+    }
     for (int y = 0; y < zXSpectrum7_8ptFontInfo.character_height; y++) {
         if (text_draw_string(
             disp_buf, 
             &zXSpectrum7_8ptFontInfo, 
             v_str, 
-            0, 1, DISP_COLS_NUM, DISP_ROWS_NUM, 
+            0, 0, DISP_COLS_NUM, DISP_ROWS_NUM, 
             0, y, 
             cc, bc
         ) != 0) {
