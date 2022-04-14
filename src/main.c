@@ -10,6 +10,7 @@
 #include "text.h"
 
 #define BB_GIF_FILE_NAME    "bb.gif"
+#define OUT_BB_GIF_FILE_NAME "out_bb.gif"
 #define PUTIN_GIF_FILE_NAME "put.gif"
 #define OCEAN_GIF_FILE_NAME "ocean.gif"
 #define NEW_GIF_FILE_NAME   "copy.gif"
@@ -230,6 +231,10 @@ bool run_tests() {
     if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file3_id, 4080))
         goto test_fail;
 
+    uint16_t file4_id = storage_generate_id();
+    if (!file_copy_to_storage_test(OUT_BB_GIF_FILE_NAME, file4_id, 4080))
+        goto test_fail;
+
     if (!file_delete_test(file2_id))
         goto test_fail;
 
@@ -239,11 +244,11 @@ bool run_tests() {
     if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
-    if (!gif_test(file1_id))
+    if (!gif_test(file4_id))
         goto test_fail;
 
-    if (!text_test())
-        goto test_fail;
+    // if (!text_test())
+    //     goto test_fail;
 
     LOGI("All test results are successfull!");
     return true;

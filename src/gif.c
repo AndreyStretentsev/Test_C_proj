@@ -328,8 +328,9 @@ static uint16_t get_key(
             (*sub_len)--;
         }
         frag_size = MIN(key_size - bits_read, 8 - rpad);
-        key |= ((uint16_t) ((*byte) >> rpad)) << bits_read;
+        key |= ((uint16_t) ((*byte) << rpad)) >> bits_read;
     }
+    key >>= 8 - key_size;
     key &= (1 << key_size) - 1;
     *shift = (*shift + key_size) % 8;
     return key;
@@ -365,7 +366,7 @@ void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
         if (key == stop || key == 0x1000) break;
         x = frm_off % gif->fw;
         y = frm_off / gif->fw;
-        LOGI("y = %d\tx = %d\tkey = 0x%02X(%d)", y, x, key, key);
+        LOGI("key = 0x%02X", key);
         color = &gif->palette->colors[key * DISP_LEDS_NUM];
         if (!gif->gce.transparency || key != gif->gce.tindex)
             memcpy(
