@@ -14,7 +14,7 @@
 #define LOGLEVEL_WARN       2
 #define LOGLEVEL_ERROR      1
 #define LOGLEVEL_OFF        0
-#define LOGLEVEL            LOGLEVEL_INFO
+#define LOGLEVEL            LOGLEVEL_OFF
 
 #define LOG_COLOR_BLACK   "30"
 #define LOG_COLOR_RED     "31"

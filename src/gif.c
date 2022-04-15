@@ -351,7 +351,6 @@ void gif_decode_n_render(gif_t *gif, uint8_t *buffer) {
         end, end
     );
     storage_file_set_cursor(gif->fd, start, S_SET);
-    uint16_t lzw16 = lzw;
     uint32_t frm_off = 0;
     uint32_t frm_size = gif->fw * gif->fh;
     while (frm_off < frm_size) {
@@ -385,14 +384,9 @@ static void decode_frame(gif_t *gif) {
     discard_sub_blocks(gif);
     int end = storage_file_set_cursor(gif->fd, 0, S_CUR);
     storage_file_set_cursor(gif->fd, start, S_SET);
-    clear = 1 << lzw;
-    stop = clear + 1;
-    lzw++;
     for (int y = gif->fy; y < gif->fy + gif->fh; y++) {
         for (int x = gif->fx; x < gif->fx + gif->fw; x++) {
             key = get_key(gif, lzw, &sub_len, &shift, &byte);
-            if (key == clear) continue;
-            if (key == stop || key == 0x1000) break;
             LOGI("y = %d\tx = %d\tkey = %d", y, x, key);
             gif->frame[y][x] = key;
         }
@@ -421,7 +415,6 @@ static void render_frame_rect(gif_t *gif, uint8_t *buffer) {
 static void dispose(gif_t *gif) {
     LOGI("Dispose");
     int i, j, k;
-    uint8_t *bgcolor;
     switch (gif->gce.disposal) {
     case 2: 
         LOGI("fill with bg color");
