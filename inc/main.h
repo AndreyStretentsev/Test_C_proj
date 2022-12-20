@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define SYS_CLOCK 192000000 // 192 MHz
-#define UART_BOUDRATE 921600
+#define UART_BOUDRATE 2000000
 
 #define LOGLEVEL_DEBUG      4
 #define LOGLEVEL_INFO       3

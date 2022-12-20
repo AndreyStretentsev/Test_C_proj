@@ -14,6 +14,12 @@
 #define PUTIN_GIF_FILE_NAME "put.gif"
 #define OCEAN_GIF_FILE_NAME "ocean.gif"
 #define NEW_GIF_FILE_NAME   "copy.gif"
+#define SMILE_GIF_NAME "smile.gif"
+#define DINO_GIF_NAME "dino.gif"
+
+#define FUN_GIF_FILE_NAME "fun.gif"
+#define PIZZA_GIF_FILE_NAME "pizza.gif"
+#define WEATHER_GIF_FILE_NAME "weather.gif"
 
 bool file_copy_to_storage_test(const char * filename, uint16_t id, uint32_t chunk_size) {
     file_t file;
@@ -220,29 +226,44 @@ bool text_test() {
 
 bool run_tests() {
     uint16_t file1_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file1_id, 4080))
+    if (!file_copy_to_storage_test(FUN_GIF_FILE_NAME, file1_id, 4080))
         goto test_fail;
 
     uint16_t file2_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file2_id, 4080))
+    if (!file_copy_to_storage_test(PIZZA_GIF_FILE_NAME, file2_id, 4080))
         goto test_fail;
 
     uint16_t file3_id = storage_generate_id();
-    if (!file_copy_to_storage_test(BB_GIF_FILE_NAME, file3_id, 4080))
+    if (!file_copy_to_storage_test(WEATHER_GIF_FILE_NAME, file3_id, 4080))
         goto test_fail;
 
     uint16_t file4_id = storage_generate_id();
-    if (!file_copy_to_storage_test(OUT_BB_GIF_FILE_NAME, file4_id, 4080))
+    if (!file_copy_to_storage_test(DINO_GIF_NAME, file4_id, 4080))
         goto test_fail;
 
-    if (!file_delete_test(file2_id))
-        goto test_fail;
+    // if (!file_delete_test(file2_id))
+    //     goto test_fail;
 
-    if (!file_copy_to_storage_test(OCEAN_GIF_FILE_NAME, file2_id, 4080))
-        goto test_fail;
+    // if (!file_copy_to_storage_test(OCEAN_GIF_FILE_NAME, file2_id, 4080))
+    //     goto test_fail;
 
-    if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
-        goto test_fail;
+    // if (!file_copy_from_storage_test(NEW_GIF_FILE_NAME, file2_id, 4080))
+    //     goto test_fail;
+
+    // if (!gif_test(file1_id))
+    //     goto test_fail;
+
+    // Sleep(5000);
+
+    // if (!gif_test(file2_id))
+    //     goto test_fail;
+
+    // Sleep(5000);
+
+    // if (!gif_test(file3_id))
+    //     goto test_fail;
+
+    // Sleep(5000);
 
     if (!gif_test(file4_id))
         goto test_fail;

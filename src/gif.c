@@ -431,6 +431,7 @@ static void dispose(gif_t *gif) {
     default:
         LOGI("render frame");
         // render_frame_rect(gif, gif->frame);
+        break;
     }
 }
 

@@ -8,6 +8,7 @@ To build the project open terminal at project directory and run command:
 
 To rebuild the project run command:
 > make clean
+
 And then run:
 > make all
 
